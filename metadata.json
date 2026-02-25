@@ -1,0 +1,5 @@
+{
+  "name": "Alexandria",
+  "description": "Uma estante virtual de professores de IA com chat e sumário de arquivos.",
+  "requestFramePermissions": []
+}
