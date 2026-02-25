@@ -71,10 +71,13 @@ export async function generateSummary(teacher: Teacher, selectedFiles?: TeacherF
 
     if (!response.ok) {
       const errorData = await response.json();
+      console.error('Gemini API Error Details:', errorData);
+      
       if (response.status === 413) {
-        return 'O conteúdo é muito grande para ser processado. Tente enviar arquivos menores.';
+        throw new Error('O conteúdo é muito grande para ser processado. Tente enviar arquivos menores.');
       }
-      throw new Error(errorData.error || 'Failed to get summary from Gemini API');
+      
+      throw new Error(errorData.details || errorData.error || 'Failed to get summary from Gemini API');
     }
 
     const data = await response.json();
