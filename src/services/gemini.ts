@@ -1,7 +1,15 @@
 import { GoogleGenAI, Type, Modality } from '@google/genai';
 import { Teacher, TeacherFile, ChatMessage } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let aiInstance: GoogleGenAI | null = null;
+
+function getAI() {
+  if (!aiInstance) {
+    const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
+    aiInstance = new GoogleGenAI({ apiKey: apiKey || 'missing-api-key' });
+  }
+  return aiInstance;
+}
 
 export async function chatWithTeacher(
   teacher: Teacher,
@@ -9,6 +17,12 @@ export async function chatWithTeacher(
   history: ChatMessage[]
 ): Promise<string> {
   try {
+    const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
+    if (!apiKey) {
+      return 'Erro: Chave da API do Gemini não configurada. Por favor, adicione a variável GEMINI_API_KEY nas configurações do Vercel.';
+    }
+
+    const ai = getAI();
     const chat = ai.chats.create({
       model: 'gemini-3-flash-preview',
       config: {
@@ -52,6 +66,13 @@ export async function generateSummary(teacher: Teacher): Promise<string> {
   }
 
   try {
+    const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
+    if (!apiKey) {
+      return 'Erro: Chave da API do Gemini não configurada. Por favor, adicione a variável GEMINI_API_KEY nas configurações do Vercel.';
+    }
+
+    const ai = getAI();
+
     const parts: any[] = teacher.files.map((file) => {
       if (file.type === 'file' && file.data) {
         return {
