@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library, Search, Bell, Settings, GraduationCap, Sun, Moon, Brain, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTeachers } from './hooks/useTeachers';
+import { useSavedChats } from './hooks/useSavedChats';
 import { TeacherCard } from './components/TeacherCard';
 import { TeacherModal } from './components/TeacherModal';
 import { TeacherChat } from './components/TeacherChat';
@@ -9,9 +10,10 @@ import { TeacherBrain } from './components/TeacherBrain';
 import { Teacher, Topic } from './types';
 import { TeacherTopics } from './components/TeacherTopics';
 import { ProfileModal } from './components/ProfileModal';
+import { SavedChats } from './components/SavedChats';
 
 type ViewMode = 'grid' | 'list' | 'categories';
-type Tab = 'professores' | 'mentores' | 'biblioteca';
+type Tab = 'professores' | 'mentores' | 'biblioteca' | 'historico';
 
 export default function App() {
   const { 
@@ -28,6 +30,7 @@ export default function App() {
     deleteTopicFromTeacher,
     addMessageToTopic
   } = useTeachers();
+  const { savedChats, saveCurrentChat, deleteSavedChat } = useSavedChats();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
@@ -414,12 +417,19 @@ export default function App() {
             <LayoutGrid size={20} />
             <span className="font-medium text-sm">Professores</span>
           </button>
-          <button 
+                    <button 
             onClick={() => setActiveTab('mentores')}
             className={`flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === 'mentores' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
           >
             <Users size={20} />
             <span className="font-medium text-sm">Mentores</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('historico')}
+            className={`flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === 'historico' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
+          >
+            <Library size={20} />
+            <span className="font-medium text-sm">Histórico</span>
           </button>
         </nav>
 
@@ -501,6 +511,7 @@ export default function App() {
                 onClearChat={() => updateTopicInTeacher(topicsTeacher.id, selectedTopicId, { chatHistory: [] })}
                 onOpenBrain={() => setBrainTeacherId(topicsTeacher.id)}
                 onOpenTopics={() => {}}
+                onSaveChat={saveCurrentChat}
               />
             </motion.div>
           ) : selectedTeacher ? (
@@ -520,6 +531,7 @@ export default function App() {
                 onClearChat={() => clearTeacherChat(selectedTeacher.id)}
                 onOpenBrain={() => setBrainTeacherId(selectedTeacher.id)}
                 onOpenTopics={() => setTopicsTeacherId(selectedTeacher.id)}
+                onSaveChat={saveCurrentChat}
               />
             </motion.div>
           ) : (
@@ -584,7 +596,7 @@ export default function App() {
               {/* Action Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
                 <div className="bg-bg-card rounded-full p-1.5 flex items-center border border-border-subtle">
-                  {(['professores', 'mentores', 'biblioteca'] as Tab[]).map((tab) => (
+                                    {(['professores', 'mentores', 'biblioteca', 'historico'] as Tab[]).map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
@@ -658,7 +670,24 @@ export default function App() {
                 </div>
               </div>
 
-              {renderContent()}
+              {activeTab === 'historico' ? (
+                <SavedChats 
+                  savedChats={savedChats}
+                  teachers={teachers}
+                  onLoadChat={(chat) => {
+                    const teacher = teachers.find(t => t.id === chat.teacherId);
+                    if (teacher) {
+                      const updatedTeacher = { 
+                        ...teacher, 
+                        chatHistory: chat.history 
+                      };
+                      updateTeacher(teacher.id, updatedTeacher);
+                      setSelectedTeacherId(teacher.id);
+                    }
+                  }}
+                  onDeleteChat={deleteSavedChat}
+                />
+              ) : renderContent()}
             </motion.div>
           )}
         </AnimatePresence>

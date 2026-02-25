@@ -21,11 +21,9 @@ const client = new OAuth2Client(
   process.env.GOOGLE_REDIRECT_URI
 );
 
-// Use GEMINI_API_KEY if available, otherwise fallback to GOOGLE_API_KEY
-const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+const apiKey = process.env.GOOGLE_API_KEY;
 if (!apiKey) {
-  console.error('Missing Gemini API Key. Please set GEMINI_API_KEY or GOOGLE_API_KEY environment variable.');
-  // process.exit(1); // Optional: exit if no key is found
+  console.error('Missing Gemini API Key. Please set GOOGLE_API_KEY environment variable.');
 }
 const ai = new GoogleGenAI({ apiKey });
 
@@ -94,15 +92,15 @@ async function createServer() {
     const { teacher, message, history } = req.body;
     
     try {
-      const model = ai.models.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
-      const chat = model.startChat({
+      const chat = ai.chats.create({
+        model: 'gemini-3-flash-preview',
+        config: {
+            systemInstruction: teacher.prompt,
+        },
         history: history.map((msg: any) => ({ role: msg.role, parts: [{ text: msg.text }] })),
-        systemInstruction: teacher.prompt,
       });
-      const result = await chat.sendMessage(message);
-      const response = await result.response;
-      const text = response.text();
-      res.json({ text });
+      const response = await chat.sendMessage({ message });
+      res.json({ text: response.text });
     } catch (error) {
       console.error('Gemini chat error:', error);
       res.status(500).json({ error: 'Failed to get response from Gemini.' });
@@ -114,13 +112,13 @@ async function createServer() {
     const { teacher, files } = req.body;
     
     try {
-      const model = ai.models.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
       const fileContent = files.map((f: any) => `--- INÍCIO DO ARQUIVO: ${f.name} ---\n\n${f.content}\n\n--- FIM DO ARQUIVO: ${f.name} ---`).join('\n\n');
       const prompt = `Você é um especialista em ${teacher.specialty}. Resuma o seguinte conteúdo de forma concisa e clara:\n\n${fileContent}`;
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-      res.json({ text });
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: { parts: [{ text: prompt }] },
+      });
+      res.json({ text: response.text });
     } catch (error) {
       console.error('Gemini summary error:', error);
       res.status(500).json({ error: 'Failed to get summary from Gemini.' });
@@ -129,18 +127,13 @@ async function createServer() {
 
   app.get('/api/check-plan', async (req, res) => {
     if (!apiKey) return res.json({ plan: 'Desconhecido' });
-    // This is a simplified check. A real implementation might involve a specific API call to Google AI Platform.
     try {
-      // A simple way to check is to try to access a Pro-only model or feature.
-      // For this example, we'll just assume the key is 'Pro' if it's not a known free key pattern.
-      // This is NOT a reliable method for production.
-      const model = ai.models.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
-      // If the model is successfully retrieved without error, we can assume it's a Pro plan.
-      // This is a placeholder for a real check.
-      await model.generateContent('test'); // A simple call to see if it fails
+      await ai.models.generateContent({
+        model: 'gemini-3.1-pro-preview',
+        contents: { parts: [{ text: 'test' }] },
+      });
       res.json({ plan: 'Pro' });
     } catch (error) {
-      // If it fails, it might be a standard key or an invalid one.
       res.json({ plan: 'Standard' });
     }
   });

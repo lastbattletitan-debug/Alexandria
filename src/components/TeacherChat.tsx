@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Send, FileText, Loader2, BookOpen, Link as LinkIcon, Upload, Trash2, X, Brain, Bookmark, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Send, FileText, Loader2, BookOpen, Link as LinkIcon, Trash2, X, Brain, Bookmark, ChevronDown, Save } from 'lucide-react';
+import { SavedChat } from '../types';
 import ReactMarkdown from 'react-markdown';
 import { Teacher, ChatMessage, TeacherFile, Topic } from '../types';
 import { chatWithTeacher, generateSummary } from '../services/gemini';
 
 interface TeacherChatProps {
+  onSaveChat: (chat: Omit<SavedChat, 'id' | 'timestamp'>) => void;
   teacher: Teacher;
   currentTopic?: Topic;
   onBack: () => void;
@@ -22,21 +24,18 @@ export function TeacherChat({
   currentTopic,
   onBack, 
   onAddMessage, 
-  onAddFile, 
-  onRemoveFile, 
   onClearChat, 
   onOpenBrain,
-  onOpenTopics
+  onOpenTopics,
+  onSaveChat
 }: TeacherChatProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
-  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
-  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
   const [selectedChatSourceId, setSelectedChatSourceId] = useState<string | null>(null);
-  const [selectedChatTopicId, setSelectedChatTopicId] = useState<string | null>(null); // New state for topic selection in chat
-  const [isTopicDropdownOpen, setIsTopicDropdownOpen] = useState(false); // New state for topic dropdown
+  const [selectedChatTopicId, setSelectedChatTopicId] = useState<string | null>(null);
+  const [isTopicDropdownOpen, setIsTopicDropdownOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const history = currentTopic ? currentTopic.chatHistory : teacher.chatHistory;
@@ -81,40 +80,28 @@ export function TeacherChat({
       return;
     }
 
-    // Open selection modal instead of direct generation
-    setSelectedFileIds(teacher.files.map(f => f.id));
-    setIsSummaryModalOpen(true);
-  };
-
-  const confirmSummary = async () => {
-    if (selectedFileIds.length === 0) {
-      alert('Selecione pelo menos uma fonte para gerar o sumário.');
-      return;
-    }
-
-    setIsSummaryModalOpen(false);
     setIsSummarizing(true);
     try {
-      const selectedFiles = teacher.files.filter(f => selectedFileIds.includes(f.id));
-      const summaryText = await generateSummary(teacher, selectedFiles);
+      const filesToSummarize = selectedChatSourceId 
+        ? teacher.files.filter(f => f.id === selectedChatSourceId)
+        : teacher.files;
+
+      const summaryText = await generateSummary(teacher, filesToSummarize);
+      
+      const sourceName = selectedChatSourceId 
+        ? teacher.files.find(f => f.id === selectedChatSourceId)?.name
+        : 'todas as fontes';
+
       onAddMessage(teacher.id, {
         role: 'model',
-        text: `**Sumário das Fontes Selecionadas:**\n\n${summaryText}`,
+        text: `**Sumário de ${sourceName}:**\n\n${summaryText}`,
       });
     } catch (error) {
       console.error(error);
-      alert('Erro ao gerar sumário.');
+      onAddMessage(teacher.id, { role: 'model', text: 'Ocorreu um erro ao gerar o sumário dos arquivos.' });
     } finally {
       setIsSummarizing(false);
     }
-  };
-
-  const toggleFileSelection = (fileId: string) => {
-    setSelectedFileIds(prev => 
-      prev.includes(fileId) 
-        ? prev.filter(id => id !== fileId) 
-        : [...prev, fileId]
-    );
   };
 
   const handleClearChat = () => {
@@ -224,6 +211,8 @@ export function TeacherChat({
             <span className="hidden sm:inline">Gerar Sumário</span>
             <span className="sm:hidden">Sumário</span>
           </button>
+
+
           <button
             onClick={onOpenBrain}
             className="p-3 bg-text-primary text-bg-main rounded-2xl hover:scale-110 transition-all shadow-lg"
@@ -358,67 +347,6 @@ export function TeacherChat({
           </div>
         </form>
       </div>
-
-      {/* Summary Selection Modal */}
-      <AnimatePresence>
-        {isSummaryModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-bg-card border border-border-strong rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col"
-            >
-              <div className="p-8 border-b border-border-subtle">
-                <h2 className="text-xl font-bold text-text-primary">Selecionar Fontes para Sumário</h2>
-              </div>
-              <div className="p-8 overflow-y-auto max-h-[50vh]">
-                <p className="text-text-muted mb-6 text-sm">
-                  Escolha quais arquivos e links devem ser incluídos na geração do sumário.
-                </p>
-                <div className="space-y-3">
-                  {teacher.files.map((file) => (
-                    <button
-                      key={file.id}
-                      onClick={() => toggleFileSelection(file.id)}
-                      className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${
-                        selectedFileIds.includes(file.id)
-                          ? 'bg-border-strong border-border-strong text-text-primary'
-                          : 'bg-bg-main border-border-subtle text-text-muted hover:border-border-strong'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
-                        selectedFileIds.includes(file.id)
-                          ? 'bg-text-primary border-text-primary'
-                          : 'bg-transparent border-border-strong'
-                      }`}>
-                        {selectedFileIds.includes(file.id) && <X size={14} className="text-bg-main" />}
-                      </div>
-                      {file.type === 'link' ? <LinkIcon size={16} className="text-blue-400" /> : <FileText size={16} className="text-orange-400" />}
-                      <span className="text-sm font-medium truncate">{file.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="p-8 border-t border-border-subtle flex gap-3">
-                <button
-                  onClick={() => setIsSummaryModalOpen(false)}
-                  className="flex-1 px-6 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted bg-border-subtle hover:bg-border-strong transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={confirmSummary}
-                  disabled={selectedFileIds.length === 0}
-                  className="flex-1 px-6 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-bg-main bg-text-primary hover:opacity-90 transition-colors disabled:opacity-20"
-                >
-                  Gerar Sumário
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Clear Chat Modal */}
       <AnimatePresence>

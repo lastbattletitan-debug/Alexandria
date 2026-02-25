@@ -41,15 +41,15 @@ export function ProfileModal({
     onClose();
   };
 
-  const handleLogin = async () => {
-    try {
-      const res = await fetch('/api/auth/google');
-      const data = await res.json();
-      window.location.href = data.url;
-    } catch (error) {
-      console.error('Failed to login with Google:', error);
-    }
-  };
+  // const handleLogin = async () => {
+  //   try {
+  //     const res = await fetch('/api/auth/google');
+  //     const data = await res.json();
+  //     window.location.href = data.url;
+  //   } catch (error) {
+  //     console.error('Failed to login with Google:', error);
+  //   }
+  // };
 
   return (
     <AnimatePresence>
@@ -119,7 +119,7 @@ export function ProfileModal({
 
               <div className="border-t border-border-subtle pt-6 space-y-4">
                 <button 
-                  onClick={handleLogin}
+                  // onClick={handleLogin}
                   className="w-full flex items-center justify-center gap-3 bg-red-600 text-white px-4 py-3 rounded-xl text-sm font-medium hover:bg-red-700 transition-colors">
                   <LogIn size={16} />
                   <span>Login com Google</span>
