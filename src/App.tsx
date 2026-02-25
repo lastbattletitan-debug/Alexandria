@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Landmark, MoreVertical, Grid, List, LayoutGrid, Users, Library, Trash2, Search, Bell, Settings, GraduationCap, Sun, Moon, Brain } from 'lucide-react';
+import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library, Search, Bell, Settings, GraduationCap, Sun, Moon, Brain } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTeachers } from './hooks/useTeachers';
 import { TeacherCard } from './components/TeacherCard';
@@ -8,6 +8,7 @@ import { TeacherChat } from './components/TeacherChat';
 import { TeacherBrain } from './components/TeacherBrain';
 import { Teacher, Topic } from './types';
 import { TeacherTopics } from './components/TeacherTopics';
+import { ProfileModal } from './components/ProfileModal';
 
 type ViewMode = 'grid' | 'list' | 'categories';
 type Tab = 'professores' | 'mentores' | 'biblioteca';
@@ -42,6 +43,10 @@ export default function App() {
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [defaultRole, setDefaultRole] = useState<'Professor' | 'Mentor' | ''>('');
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [userName, setUserName] = useState('Julian Smith');
+  const [userImage, setUserImage] = useState('https://picsum.photos/seed/user/100/100');
+  const [userPlan, setUserPlan] = useState('Desconhecido');
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -53,6 +58,23 @@ export default function App() {
       root.style.colorScheme = 'dark';
     }
   }, [theme]);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/auth/user');
+        if (res.ok) {
+          const user = await res.json();
+          setUserName(user.name);
+          setUserImage(user.picture);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user:', error);
+      }
+    };
+
+    fetchUser();
+  }, []);
 
   const filteredTeachers = useMemo(() => {
     return teachers.filter(t => 
@@ -535,13 +557,16 @@ export default function App() {
                     <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-bg-main" />
                   </button>
                   
-                  <div className="flex items-center gap-4 pl-6 border-l border-border-strong">
+                  <div 
+                    className="flex items-center gap-4 pl-6 border-l border-border-strong cursor-pointer"
+                    onClick={() => setIsProfileModalOpen(true)}
+                  >
                     <div className="text-right hidden sm:block">
-                      <p className="text-sm font-bold text-text-primary">Julian Smith</p>
-                      <p className="text-[10px] text-text-muted uppercase tracking-widest font-bold">Membro Standard</p>
+                      <p className="text-sm font-bold text-text-primary">{userName}</p>
+                      <p className="text-[10px] text-text-muted uppercase tracking-widest font-bold">{userPlan === 'Pro' ? 'Membro Pro' : 'Membro Standard'}</p>
                     </div>
                     <img 
-                      src="https://picsum.photos/seed/user/100/100" 
+                      src={userImage} 
                       alt="User" 
                       className="w-10 h-10 rounded-xl object-cover border border-border-strong"
                       referrerPolicy="no-referrer"
@@ -638,6 +663,21 @@ export default function App() {
           onSave={handleAddOrEdit}
           initialData={editingTeacher}
           defaultRole={defaultRole}
+        />
+
+        <ProfileModal 
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          userName={userName}
+          userImage={userImage}
+          userPlan={userPlan}
+          onUpdateProfile={(name, image) => {
+            setUserName(name);
+            setUserImage(image);
+          }}
+          onCheckPlan={() => { // Placeholder for now
+            alert('Verificando plano... esta funcionalidade será implementada em breve.');
+          }}
         />
 
         {/* Delete Teacher Modal */}
