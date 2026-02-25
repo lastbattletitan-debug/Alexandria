@@ -1,11 +1,3 @@
-export interface SavedChat {
-  id: string;
-  name: string;
-  teacherId: string;
-  topicId?: string;
-  history: ChatMessage[];
-  timestamp: number;
-}
 
 export type TeacherFile = {
   id: string;

@@ -112,7 +112,7 @@ async function createServer() {
     const { teacher, files } = req.body;
     
     try {
-      const fileContent = files.map((f: any) => `--- INÍCIO DO ARQUIVO: ${f.name} ---\n\n${f.content}\n\n--- FIM DO ARQUIVO: ${f.name} ---`).join('\n\n');
+            const fileContent = files.map((f: any) => `--- INÍCIO DO ARQUIVO: ${f.name} ---\n\n${f.data}\n\n--- FIM DO ARQUIVO: ${f.name} ---`).join('\n\n');
       const prompt = `Você é um especialista em ${teacher.specialty}. Resuma o seguinte conteúdo de forma concisa e clara:\n\n${fileContent}`;
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -129,7 +129,7 @@ async function createServer() {
     if (!apiKey) return res.json({ plan: 'Desconhecido' });
     try {
       await ai.models.generateContent({
-        model: 'gemini-3.1-pro-preview',
+                model: 'gemini-3-flash-preview',
         contents: { parts: [{ text: 'test' }] },
       });
       res.json({ plan: 'Pro' });
@@ -153,10 +153,20 @@ async function createServer() {
     });
   }
 
-  const PORT = 3000;
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Servidor rodando em http://localhost:${PORT}`);
-  });
+  return app;
 }
 
-createServer();
+const app = createServer();
+
+// Only run the server locally
+if (!process.env.VERCEL) {
+  (async () => {
+    const server = await app;
+    const PORT = 3000;
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`Servidor rodando em http://localhost:${PORT}`);
+    });
+  })();
+}
+
+export default app;

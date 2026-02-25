@@ -119,12 +119,12 @@ export function ProfileModal({
 
               <div className="border-t border-border-subtle pt-6 space-y-4">
                 <button 
-                  // onClick={handleLogin}
-                  className="w-full flex items-center justify-center gap-3 bg-red-600 text-white px-4 py-3 rounded-xl text-sm font-medium hover:bg-red-700 transition-colors">
+                  disabled
+                  className="w-full flex items-center justify-center gap-3 bg-red-600 text-white px-4 py-3 rounded-xl text-sm font-medium transition-colors opacity-50 cursor-not-allowed">
                   <LogIn size={16} />
                   <span>Login com Google</span>
                 </button>
-                <p className="text-xs text-text-muted text-center">Faça login para salvar seus dados e professores na nuvem.</p>
+                <p className="text-xs text-text-muted text-center">Login com Google temporariamente desativado.</p>
               </div>
 
               <div className="border-t border-border-subtle pt-6 space-y-4">

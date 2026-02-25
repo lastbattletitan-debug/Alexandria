@@ -1,13 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Send, FileText, Loader2, BookOpen, Link as LinkIcon, Trash2, X, Brain, Bookmark, ChevronDown, Save } from 'lucide-react';
-import { SavedChat } from '../types';
+import { ArrowLeft, Send, FileText, Loader2, BookOpen, Link as LinkIcon, Trash2, X, Brain, Bookmark, ChevronDown } from 'lucide-react';
+
 import ReactMarkdown from 'react-markdown';
 import { Teacher, ChatMessage, TeacherFile, Topic } from '../types';
 import { chatWithTeacher, generateSummary } from '../services/gemini';
 
 interface TeacherChatProps {
-  onSaveChat: (chat: Omit<SavedChat, 'id' | 'timestamp'>) => void;
   teacher: Teacher;
   currentTopic?: Topic;
   onBack: () => void;
@@ -26,8 +25,7 @@ export function TeacherChat({
   onAddMessage, 
   onClearChat, 
   onOpenBrain,
-  onOpenTopics,
-  onSaveChat
+  onOpenTopics
 }: TeacherChatProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
