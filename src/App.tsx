@@ -43,7 +43,14 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('professores');
   const [teacherToDelete, setTeacherToDelete] = useState<Teacher | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [zoomLevel, setZoomLevel] = useState(1);
+  
+  // Independent zoom levels for each tab
+  const [zoomLevels, setZoomLevels] = useState<{ [key in Tab]: number }>({
+    professores: 1,
+    mentores: 1,
+    biblioteca: 1
+  });
+
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [defaultRole, setDefaultRole] = useState<'Professor' | 'Mentor' | ''>('');
@@ -51,6 +58,12 @@ export default function App() {
   const [userName, setUserName] = useState('Seu nome');
   const [userImage, setUserImage] = useState('');
   const [userPlan, setUserPlan] = useState('Desconhecido');
+
+  // Helper to get/set current zoom
+  const currentZoom = zoomLevels[activeTab];
+  const setZoom = (value: number) => {
+    setZoomLevels(prev => ({ ...prev, [activeTab]: value }));
+  };
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -135,7 +148,7 @@ export default function App() {
               <div 
                 key={teacher.id}
                 onClick={() => setSelectedTeacherId(teacher.id)}
-                style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'left center' }}
+                style={{ transform: `scale(${currentZoom})`, transformOrigin: 'left center' }}
                 className="group flex items-center justify-between p-6 bg-bg-card border border-border-subtle rounded-2xl hover:bg-border-strong transition-all cursor-pointer"
               >
                 <div className="flex items-center gap-6">
@@ -188,7 +201,7 @@ export default function App() {
                 <div 
                   className="grid gap-6"
                   style={{ 
-                    gridTemplateColumns: `repeat(auto-fill, minmax(${280 * zoomLevel}px, 1fr))` 
+                    gridTemplateColumns: `repeat(auto-fill, minmax(${280 * currentZoom}px, 1fr))` 
                   }}
                 >
                   {mentors.filter(t => (t.category || 'Geral') === category).map(teacher => (
@@ -213,7 +226,7 @@ export default function App() {
         <div 
           className="grid gap-6 mt-8"
           style={{ 
-            gridTemplateColumns: `repeat(auto-fill, minmax(${280 * zoomLevel}px, 1fr))` 
+            gridTemplateColumns: `repeat(auto-fill, minmax(${280 * currentZoom}px, 1fr))` 
           }}
         >
           {mentors.map((teacher) => (
@@ -242,7 +255,7 @@ export default function App() {
     }
 
     if (activeTab === 'biblioteca') {
-      return <Library />;
+      return <Library zoomLevel={currentZoom} />;
     }
 
     // Professores Tab
@@ -253,7 +266,7 @@ export default function App() {
             <div 
               key={teacher.id}
               onClick={() => setSelectedTeacherId(teacher.id)}
-              style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'left center' }}
+              style={{ transform: `scale(${currentZoom})`, transformOrigin: 'left center' }}
               className="group flex items-center justify-between p-6 bg-bg-card border border-border-subtle rounded-2xl hover:bg-border-strong transition-all cursor-pointer"
             >
               <div className="flex items-center gap-6">
@@ -306,7 +319,7 @@ export default function App() {
               <div 
                 className="grid gap-6"
                 style={{ 
-                  gridTemplateColumns: `repeat(auto-fill, minmax(${280 * zoomLevel}px, 1fr))` 
+                  gridTemplateColumns: `repeat(auto-fill, minmax(${280 * currentZoom}px, 1fr))` 
                 }}
               >
                 {filteredTeachers.filter(t => t.role === 'Professor' && (t.category || 'Geral') === category).map(teacher => (
@@ -331,7 +344,7 @@ export default function App() {
       <div 
         className="grid gap-6 mt-8"
         style={{ 
-          gridTemplateColumns: `repeat(auto-fill, minmax(${280 * zoomLevel}px, 1fr))` 
+          gridTemplateColumns: `repeat(auto-fill, minmax(${280 * currentZoom}px, 1fr))` 
         }}
       >
         {filteredTeachers.filter(t => t.role === 'Professor').map((teacher) => (
@@ -417,15 +430,15 @@ export default function App() {
           <div className="px-6 py-4 bg-border-subtle rounded-2xl border border-border-subtle">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Zoom dos Cards</span>
-              <span className="text-[9px] font-bold text-text-primary bg-border-strong px-2 py-0.5 rounded">{Math.round(zoomLevel * 100)}%</span>
+              <span className="text-[9px] font-bold text-text-primary bg-border-strong px-2 py-0.5 rounded">{Math.round(currentZoom * 100)}%</span>
             </div>
             <input 
               type="range" 
               min="0.5" 
               max="1.5" 
               step="0.1" 
-              value={zoomLevel}
-              onChange={(e) => setZoomLevel(parseFloat(e.target.value))}
+              value={currentZoom}
+              onChange={(e) => setZoom(parseFloat(e.target.value))}
               className="w-full h-1 bg-border-strong rounded-lg appearance-none cursor-pointer accent-text-primary"
             />
           </div>

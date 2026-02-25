@@ -25,44 +25,7 @@ async function createServer() {
 
 
 
-  // Gemini API routes
-  app.post('/api/chat', async (req, res) => {
-    if (!apiKey) return res.status(500).json({ error: 'API key not configured.' });
-    const { teacher, message, history } = req.body;
-    
-    try {
-      const chat = ai.chats.create({
-        model: 'gemini-3-flash-preview',
-        config: {
-            systemInstruction: teacher.prompt,
-        },
-        history: history.map((msg: any) => ({ role: msg.role, parts: [{ text: msg.text }] })),
-      });
-      const response = await chat.sendMessage({ message });
-      res.json({ text: response.text });
-    } catch (error) {
-      console.error('Gemini chat error:', error);
-      res.status(500).json({ error: 'Failed to get response from Gemini.' });
-    }
-  });
-
-  app.post('/api/summary', async (req, res) => {
-    if (!apiKey) return res.status(500).json({ error: 'API key not configured.' });
-    const { teacher, files } = req.body;
-    
-    try {
-            const fileContent = files.map((f: any) => `--- INÍCIO DO ARQUIVO: ${f.name} ---\n\n${f.data}\n\n--- FIM DO ARQUIVO: ${f.name} ---`).join('\n\n');
-      const prompt = `Você é um especialista em ${teacher.specialty}. Resuma o seguinte conteúdo de forma concisa e clara:\n\n${fileContent}`;
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: { parts: [{ text: prompt }] },
-      });
-      res.json({ text: response.text });
-    } catch (error) {
-      console.error('Gemini summary error:', error);
-      res.status(500).json({ error: 'Failed to get summary from Gemini.' });
-    }
-  });
+  // Gemini API routes removed - handled in frontend services/gemini.ts
 
   app.get('/api/check-plan', async (req, res) => {
     if (!apiKey) return res.json({ plan: 'Desconhecido' });
