@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import localforage from 'localforage';
-import { Teacher, TeacherFile, ChatMessage } from '../types';
+import { Teacher, TeacherFile, ChatMessage, Topic } from '../types';
 
 const STORAGE_KEY = 'ai-teachers-bookshelf';
 
@@ -38,12 +38,13 @@ export function useTeachers() {
     }
   }, [teachers, isLoaded]);
 
-  const addTeacher = (teacher: Omit<Teacher, 'id' | 'files' | 'chatHistory'>) => {
+  const addTeacher = (teacher: Omit<Teacher, 'id' | 'files' | 'chatHistory' | 'topics'>) => {
     const newTeacher: Teacher = {
       ...teacher,
       id: crypto.randomUUID(),
       files: [],
       chatHistory: [],
+      topics: [],
     };
     setTeachers((prev) => [...prev, newTeacher]);
     return newTeacher;
@@ -85,8 +86,78 @@ export function useTeachers() {
     );
   };
 
+  const removeFileFromTeacher = (teacherId: string, fileId: string) => {
+    setTeachers((prev) =>
+      prev.map((t) =>
+        t.id === teacherId
+          ? { ...t, files: t.files.filter((f) => f.id !== fileId) }
+          : t
+      )
+    );
+  };
+
   const deleteTeacher = (id: string) => {
     setTeachers((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const addTopicToTeacher = (teacherId: string, topic: Omit<Topic, 'id' | 'createdAt' | 'chatHistory' | 'status'>) => {
+    const newTopic: Topic = {
+      ...topic,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      chatHistory: [],
+      status: 'in_progress'
+    };
+    setTeachers((prev) =>
+      prev.map((t) =>
+        t.id === teacherId ? { ...t, topics: [...(t.topics || []), newTopic] } : t
+      )
+    );
+    return newTopic;
+  };
+
+  const updateTopicInTeacher = (teacherId: string, topicId: string, updates: Partial<Topic>) => {
+    setTeachers((prev) =>
+      prev.map((t) =>
+        t.id === teacherId
+          ? {
+              ...t,
+              topics: (t.topics || []).map((topic) =>
+                topic.id === topicId ? { ...topic, ...updates } : topic
+              ),
+            }
+          : t
+      )
+    );
+  };
+
+  const deleteTopicFromTeacher = (teacherId: string, topicId: string) => {
+    setTeachers((prev) =>
+      prev.map((t) =>
+        t.id === teacherId
+          ? { ...t, topics: (t.topics || []).filter((topic) => topic.id !== topicId) }
+          : t
+      )
+    );
+  };
+
+  const addMessageToTopic = (teacherId: string, topicId: string, message: Omit<ChatMessage, 'id'>) => {
+    const newMessage: ChatMessage = { ...message, id: crypto.randomUUID() };
+    setTeachers((prev) =>
+      prev.map((t) =>
+        t.id === teacherId
+          ? {
+              ...t,
+              topics: (t.topics || []).map((topic) =>
+                topic.id === topicId
+                  ? { ...topic, chatHistory: [...topic.chatHistory, newMessage] }
+                  : topic
+              ),
+            }
+          : t
+      )
+    );
+    return newMessage;
   };
 
   return {
@@ -94,8 +165,13 @@ export function useTeachers() {
     addTeacher,
     updateTeacher,
     addFileToTeacher,
+    removeFileFromTeacher,
     addMessageToTeacher,
     clearTeacherChat,
     deleteTeacher,
+    addTopicToTeacher,
+    updateTopicInTeacher,
+    deleteTopicFromTeacher,
+    addMessageToTopic,
   };
 }

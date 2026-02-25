@@ -1,15 +1,17 @@
-import { Teacher, ChatMessage } from '../types';
+import { Teacher, ChatMessage, TeacherFile, Topic } from '../types';
 
 export async function chatWithTeacher(
   teacher: Teacher,
   message: string,
-  history: ChatMessage[]
+  history: ChatMessage[],
+  selectedFileIds?: string[],
+  topic?: Topic
 ): Promise<string> {
   try {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ teacher, message, history }),
+      body: JSON.stringify({ teacher, message, history, selectedFileIds, topic }),
     });
 
     const data = await response.json();
@@ -25,8 +27,10 @@ export async function chatWithTeacher(
   }
 }
 
-export async function generateSummary(teacher: Teacher): Promise<string> {
-  if (teacher.files.length === 0) {
+export async function generateSummary(teacher: Teacher, selectedFiles?: TeacherFile[]): Promise<string> {
+  const filesToSummarize = selectedFiles || teacher.files;
+  
+  if (filesToSummarize.length === 0) {
     return 'Nenhum arquivo disponível para sumarizar.';
   }
 
@@ -34,7 +38,7 @@ export async function generateSummary(teacher: Teacher): Promise<string> {
     const response = await fetch('/api/summary', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ teacher }),
+      body: JSON.stringify({ teacher, files: filesToSummarize }),
     });
 
     const data = await response.json();

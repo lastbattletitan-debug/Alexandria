@@ -1,8 +1,79 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Playfair Display", ui-serif, Georgia, serif;
+  
+  --color-bg-main: var(--bg-main, #0A0A0A);
+  --color-bg-sidebar: var(--bg-sidebar, #050505);
+  --color-bg-card: var(--bg-card, #141414);
+  --color-text-primary: var(--text-primary, #FFFFFF);
+  --color-text-muted: var(--text-muted, #8E8E8E);
+  --color-border-subtle: var(--border-subtle, rgba(255, 255, 255, 0.05));
+  --color-border-strong: var(--border-strong, rgba(255, 255, 255, 0.1));
+}
+
+@layer base {
+  :root {
+    --bg-main: #0A0A0A;
+    --bg-sidebar: #050505;
+    --bg-card: #141414;
+    --text-primary: #FFFFFF;
+    --text-muted: #8E8E8E;
+    --border-subtle: rgba(255, 255, 255, 0.05);
+    --border-strong: rgba(255, 255, 255, 0.1);
+  }
+
+  .light-theme {
+    --bg-main: #F4F4F5;
+    --bg-sidebar: #FFFFFF;
+    --bg-card: #FFFFFF;
+    --text-primary: #09090B;
+    --text-muted: #71717A;
+    --border-subtle: #E4E4E7;
+    --border-strong: #D4D4D8;
+  }
+
+  .light-theme .prose-invert {
+    --tw-prose-body: #374151;
+    --tw-prose-headings: #111827;
+    --tw-prose-lead: #4b5563;
+    --tw-prose-links: #111827;
+    --tw-prose-bold: #111827;
+    --tw-prose-counters: #6b7280;
+    --tw-prose-bullets: #d1d5db;
+    --tw-prose-hr: #e5e7eb;
+    --tw-prose-quotes: #111827;
+    --tw-prose-quote-borders: #e5e7eb;
+    --tw-prose-captions: #6b7280;
+    --tw-prose-code: #111827;
+    --tw-prose-pre-code: #e5e7eb;
+    --tw-prose-pre-bg: #1f2937;
+    --tw-prose-th-borders: #d1d5db;
+    --tw-prose-td-borders: #e5e7eb;
+  }
+
+  body {
+    @apply bg-bg-main text-text-primary antialiased transition-colors duration-300;
+  }
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0A0A0A;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #222;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #333;
 }

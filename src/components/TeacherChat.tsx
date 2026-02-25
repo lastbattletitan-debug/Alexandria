@@ -1,28 +1,45 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Send, FileText, Loader2, BookOpen, Link as LinkIcon, Upload, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, FileText, Loader2, BookOpen, Link as LinkIcon, Upload, Trash2, X, Brain, Bookmark, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { Teacher, ChatMessage, TeacherFile } from '../types';
+import { Teacher, ChatMessage, TeacherFile, Topic } from '../types';
 import { chatWithTeacher, generateSummary } from '../services/gemini';
 
 interface TeacherChatProps {
   teacher: Teacher;
+  currentTopic?: Topic;
   onBack: () => void;
   onAddMessage: (teacherId: string, message: Omit<ChatMessage, 'id'>) => void;
   onAddFile: (teacherId: string, file: Omit<TeacherFile, 'id'>) => void;
+  onRemoveFile: (teacherId: string, fileId: string) => void;
   onClearChat: () => void;
+  onOpenBrain: () => void;
+  onOpenTopics: () => void;
 }
 
-export function TeacherChat({ teacher, onBack, onAddMessage, onAddFile, onClearChat }: TeacherChatProps) {
+export function TeacherChat({ 
+  teacher, 
+  currentTopic,
+  onBack, 
+  onAddMessage, 
+  onAddFile, 
+  onRemoveFile, 
+  onClearChat, 
+  onOpenBrain,
+  onOpenTopics
+}: TeacherChatProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSummarizing, setIsSummarizing] = useState(false);
-  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
-  const [linkUrl, setLinkUrl] = useState('');
-  const [linkName, setLinkName] = useState('');
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+  const [selectedChatSourceId, setSelectedChatSourceId] = useState<string | null>(null);
+  const [selectedChatTopicId, setSelectedChatTopicId] = useState<string | null>(null); // New state for topic selection in chat
+  const [isTopicDropdownOpen, setIsTopicDropdownOpen] = useState(false); // New state for topic dropdown
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const history = currentTopic ? currentTopic.chatHistory : teacher.chatHistory;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -30,7 +47,7 @@ export function TeacherChat({ teacher, onBack, onAddMessage, onAddFile, onClearC
 
   useEffect(() => {
     scrollToBottom();
-  }, [teacher.chatHistory]);
+  }, [history]);
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -42,7 +59,13 @@ export function TeacherChat({ teacher, onBack, onAddMessage, onAddFile, onClearC
     
     setIsLoading(true);
     try {
-      const responseText = await chatWithTeacher(teacher, userMessage, teacher.chatHistory);
+      const responseText = await chatWithTeacher(
+        teacher, 
+        userMessage, 
+        history, 
+        selectedChatSourceId ? [selectedChatSourceId] : undefined,
+        currentTopic || (selectedChatTopicId ? teacher.topics?.find(t => t.id === selectedChatTopicId) : undefined)
+      );
       onAddMessage(teacher.id, { role: 'model', text: responseText });
     } catch (error) {
       console.error(error);
@@ -52,79 +75,31 @@ export function TeacherChat({ teacher, onBack, onAddMessage, onAddFile, onClearC
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-
-    for (const file of files) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert(`O arquivo ${file.name} é muito grande. O limite é 5MB por arquivo.`);
-        continue;
-      }
-
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        try {
-          const base64Data = (event.target?.result as string).split(',')[1];
-          if (base64Data) {
-            onAddFile(teacher.id, {
-              name: file.name,
-              mimeType: file.type || 'application/octet-stream',
-              data: base64Data,
-              type: 'file'
-            });
-            
-            onAddMessage(teacher.id, {
-              role: 'user',
-              text: `[Arquivo adicionado à base de conhecimento: ${file.name}]`,
-            });
-          }
-        } catch (error) {
-          console.error('Erro ao processar arquivo', error);
-          alert(`Erro ao processar o arquivo ${file.name}`);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-    
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleAddLink = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!linkUrl) return;
-
-    onAddFile(teacher.id, {
-      name: linkName || linkUrl,
-      mimeType: 'text/uri-list',
-      url: linkUrl,
-      type: 'link'
-    });
-
-    onAddMessage(teacher.id, {
-      role: 'user',
-      text: `[Link adicionado à base de conhecimento: ${linkUrl}]`,
-    });
-
-    setLinkUrl('');
-    setLinkName('');
-    setIsLinkModalOpen(false);
-  };
-
   const handleSummary = async () => {
     if (teacher.files.length === 0) {
       alert('Nenhuma fonte adicionada para este professor ainda. Adicione arquivos ou links para gerar um sumário.');
       return;
     }
 
+    // Open selection modal instead of direct generation
+    setSelectedFileIds(teacher.files.map(f => f.id));
+    setIsSummaryModalOpen(true);
+  };
+
+  const confirmSummary = async () => {
+    if (selectedFileIds.length === 0) {
+      alert('Selecione pelo menos uma fonte para gerar o sumário.');
+      return;
+    }
+
+    setIsSummaryModalOpen(false);
     setIsSummarizing(true);
     try {
-      const summaryText = await generateSummary(teacher);
+      const selectedFiles = teacher.files.filter(f => selectedFileIds.includes(f.id));
+      const summaryText = await generateSummary(teacher, selectedFiles);
       onAddMessage(teacher.id, {
         role: 'model',
-        text: `**Sumário das Fontes:**\n\n${summaryText}`,
+        text: `**Sumário das Fontes Selecionadas:**\n\n${summaryText}`,
       });
     } catch (error) {
       console.error(error);
@@ -132,6 +107,14 @@ export function TeacherChat({ teacher, onBack, onAddMessage, onAddFile, onClearC
     } finally {
       setIsSummarizing(false);
     }
+  };
+
+  const toggleFileSelection = (fileId: string) => {
+    setSelectedFileIds(prev => 
+      prev.includes(fileId) 
+        ? prev.filter(id => id !== fileId) 
+        : [...prev, fileId]
+    );
   };
 
   const handleClearChat = () => {
@@ -144,34 +127,89 @@ export function TeacherChat({ teacher, onBack, onAddMessage, onAddFile, onClearC
   };
 
   return (
-    <div className="flex flex-col h-full bg-stone-50">
+    <div className="flex flex-col h-full bg-bg-main">
       {/* Header */}
-      <header className="bg-white border-b border-stone-200 px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center gap-3">
+      <header className="bg-bg-sidebar border-b border-border-subtle px-8 py-4 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-6">
           <button
             onClick={onBack}
-            className="p-2 -ml-2 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-full transition-colors"
+            className="p-3 -ml-2 text-text-muted hover:text-text-primary hover:bg-border-subtle rounded-2xl transition-all"
           >
             <ArrowLeft size={20} />
           </button>
-          <div className="flex items-center gap-3">
-            <img
-              src={teacher.imageUrl}
-              alt={teacher.name}
-              className="w-10 h-10 rounded-full object-cover border border-stone-200"
-              referrerPolicy="no-referrer"
-            />
+          <div className="flex items-center gap-4">
+            {currentTopic ? (
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
+                <Bookmark size={24} />
+              </div>
+            ) : (
+              <img
+                src={teacher.imageUrl}
+                alt={teacher.name}
+                className="w-12 h-12 rounded-2xl object-cover border border-border-strong grayscale"
+                referrerPolicy="no-referrer"
+              />
+            )}
             <div>
-              <h2 className="font-serif font-bold text-stone-900 leading-tight">{teacher.name}</h2>
-              <p className="text-xs font-medium text-stone-500 uppercase tracking-wider">{teacher.role}</p>
+              <h2 className="font-bold text-text-primary leading-tight">
+                {currentTopic ? currentTopic.name : teacher.name}
+              </h2>
+              <div className="relative">
+                <button
+                  onClick={() => setIsTopicDropdownOpen(prev => !prev)}
+                  className="flex items-center gap-1 text-[10px] font-bold text-text-muted uppercase tracking-widest mt-0.5 hover:text-text-primary transition-colors"
+                  title="Selecionar Tópico"
+                >
+                  {selectedChatTopicId ? teacher.topics?.find(t => t.id === selectedChatTopicId)?.name : (currentTopic ? `Tópico de ${teacher.name}` : teacher.role)}
+                  <ChevronDown size={12} className={`transition-transform ${isTopicDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {isTopicDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute left-0 top-full mt-2 w-56 bg-bg-card border border-border-strong rounded-2xl shadow-2xl z-20 overflow-hidden"
+                    >
+                      <div className="p-2">
+                        <button
+                          onClick={() => { setSelectedChatTopicId(null); setIsTopicDropdownOpen(false); }}
+                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${selectedChatTopicId === null ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
+                        >
+                          <BookOpen size={14} /> Chat Geral
+                        </button>
+                        {teacher.topics?.map(topic => (
+                          <button
+                            key={topic.id}
+                            onClick={() => { setSelectedChatTopicId(topic.id); setIsTopicDropdownOpen(false); }}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${selectedChatTopicId === topic.id ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
+                          >
+                            <Bookmark size={14} /> {topic.name}
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {!currentTopic && (
+            <button
+              onClick={onOpenTopics}
+              className="flex items-center gap-2 text-text-muted hover:text-text-primary hover:bg-border-subtle px-4 py-2.5 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all"
+              title="Meus Tópicos"
+            >
+              <Bookmark size={16} />
+              <span className="hidden sm:inline">Meus Tópicos</span>
+            </button>
+          )}
           <button
             onClick={handleClearChat}
-            className="flex items-center gap-2 text-stone-500 hover:text-red-500 hover:bg-red-50 px-3 py-2 rounded-full text-sm font-medium transition-colors"
+            className="flex items-center gap-2 text-text-muted hover:text-red-400 hover:bg-red-400/5 px-4 py-2.5 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all"
             title="Limpar Chat"
           >
             <Trash2 size={16} />
@@ -180,70 +218,42 @@ export function TeacherChat({ teacher, onBack, onAddMessage, onAddFile, onClearC
           <button
             onClick={handleSummary}
             disabled={isSummarizing || teacher.files.length === 0}
-            className="flex items-center gap-2 bg-stone-900 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-stone-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 bg-text-primary text-bg-main px-6 py-2.5 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSummarizing ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
             <span className="hidden sm:inline">Gerar Sumário</span>
             <span className="sm:hidden">Sumário</span>
           </button>
+          <button
+            onClick={onOpenBrain}
+            className="p-3 bg-text-primary text-bg-main rounded-2xl hover:scale-110 transition-all shadow-lg"
+            title="Cérebro do Professor"
+          >
+            <Brain size={16} />
+          </button>
         </div>
       </header>
 
-      {/* Sources Bar */}
-      <div className="bg-white border-b border-stone-200 px-4 py-3 flex flex-col gap-3 shrink-0">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-stone-500 uppercase tracking-wider flex items-center gap-2">
-            <BookOpen size={14} /> Fontes ({teacher.files.length})
-          </h3>
-          <div className="flex items-center gap-2">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              className="hidden"
-              accept="image/*,text/*,application/pdf"
-              multiple
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 text-xs font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-full transition-colors"
-            >
-              <Upload size={14} /> Upload Arquivos
-            </button>
-            <button
-              onClick={() => setIsLinkModalOpen(true)}
-              className="flex items-center gap-1.5 text-xs font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-full transition-colors"
-            >
-              <LinkIcon size={14} /> Adicionar Link
-            </button>
-          </div>
-        </div>
-        
-        {teacher.files.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-stone-200">
-            {teacher.files.map((file) => (
-              <div key={file.id} className="flex items-center gap-1.5 bg-stone-50 border border-stone-200 px-3 py-1.5 rounded-lg text-xs font-medium text-stone-700 whitespace-nowrap shrink-0">
-                {file.type === 'link' ? <LinkIcon size={12} className="text-blue-500" /> : <FileText size={12} className="text-orange-500" />}
-                <span className="max-w-[150px] truncate" title={file.name}>{file.name}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {teacher.chatHistory.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-stone-400 space-y-4">
-            <div className="w-24 h-24 rounded-full bg-stone-200 flex items-center justify-center overflow-hidden">
-              <img src={teacher.imageUrl} alt="" className="w-full h-full object-cover opacity-50 grayscale" referrerPolicy="no-referrer" />
+      <div className="flex-1 overflow-y-auto p-8 space-y-8">
+        {history.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-text-muted space-y-6">
+            <div className="w-32 h-32 rounded-[32px] bg-bg-card border border-border-subtle flex items-center justify-center overflow-hidden">
+              {currentTopic ? (
+                <Bookmark size={48} className="opacity-20" />
+              ) : (
+                <img src={teacher.imageUrl} alt="" className="w-full h-full object-cover opacity-20 grayscale" referrerPolicy="no-referrer" />
+              )}
             </div>
-            <p className="text-center max-w-sm">
-              Envie uma mensagem para começar a conversar com {teacher.name}. Adicione fontes acima para que o professor as utilize como base de conhecimento.
+            <p className="text-center max-w-sm text-sm font-medium leading-relaxed">
+              {currentTopic 
+                ? `Iniciando tópico: ${currentTopic.name}. O que você quer aprender sobre isso hoje?`
+                : `Envie uma mensagem para começar a conversar com ${teacher.name}. Adicione fontes acima para que o professor as utilize como base de conhecimento.`
+              }
             </p>
           </div>
         ) : (
-          teacher.chatHistory.map((msg, idx) => (
+          history.map((msg, idx) => (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -251,18 +261,18 @@ export function TeacherChat({ teacher, onBack, onAddMessage, onAddFile, onClearC
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-5 py-4 ${
+                className={`max-w-[85%] sm:max-w-[75%] rounded-[24px] px-6 py-5 leading-relaxed ${
                   msg.role === 'user'
-                    ? 'bg-stone-900 text-white rounded-tr-sm'
-                    : 'bg-white border border-stone-200 text-stone-800 rounded-tl-sm shadow-sm'
+                    ? 'bg-text-primary text-bg-main font-medium'
+                    : 'bg-bg-card border border-border-subtle text-text-primary'
                 }`}
               >
                 {msg.role === 'model' ? (
-                  <div className="prose prose-sm prose-stone max-w-none">
+                  <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-bg-main prose-pre:border prose-pre:border-border-strong text-text-primary">
                     <ReactMarkdown>{msg.text}</ReactMarkdown>
                   </div>
                 ) : (
-                  <p className="whitespace-pre-wrap">{msg.text}</p>
+                  <p className="whitespace-pre-wrap text-sm">{msg.text}</p>
                 )}
               </div>
             </motion.div>
@@ -274,9 +284,9 @@ export function TeacherChat({ teacher, onBack, onAddMessage, onAddFile, onClearC
             animate={{ opacity: 1, y: 0 }}
             className="flex justify-start"
           >
-            <div className="bg-white border border-stone-200 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm flex items-center gap-2 text-stone-500">
+            <div className="bg-bg-card border border-border-subtle rounded-[24px] px-6 py-5 flex items-center gap-3 text-text-muted">
               <Loader2 size={16} className="animate-spin" />
-              <span className="text-sm font-medium">Digitando...</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest">Digitando...</span>
             </div>
           </motion.div>
         )}
@@ -284,9 +294,42 @@ export function TeacherChat({ teacher, onBack, onAddMessage, onAddFile, onClearC
       </div>
 
       {/* Input Area */}
-      <div className="bg-white border-t border-stone-200 p-4 shrink-0">
-        <form onSubmit={handleSend} className="max-w-4xl mx-auto relative flex items-end gap-2">
-          <div className="flex-1 relative">
+      <div className="bg-bg-main border-t border-border-subtle p-8 shrink-0">
+        <form onSubmit={handleSend} className="max-w-4xl mx-auto relative flex flex-col gap-4">
+          {/* Selective Source Selector */}
+          {teacher.files.length > 0 && (
+            <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-none">
+              <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest whitespace-nowrap">Falar sobre:</span>
+              <button
+                type="button"
+                onClick={() => setSelectedChatSourceId(null)}
+                className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap border ${
+                  selectedChatSourceId === null
+                    ? 'bg-text-primary text-bg-main border-text-primary'
+                    : 'bg-bg-card text-text-muted border-border-subtle hover:border-border-strong'
+                }`}
+              >
+                Tudo
+              </button>
+              {teacher.files.map((file) => (
+                <button
+                  key={file.id}
+                  type="button"
+                  onClick={() => setSelectedChatSourceId(file.id)}
+                  className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap border flex items-center gap-2 ${
+                    selectedChatSourceId === file.id
+                      ? 'bg-text-primary text-bg-main border-text-primary'
+                      : 'bg-bg-card text-text-muted border-border-subtle hover:border-border-strong'
+                  }`}
+                >
+                  {file.type === 'link' ? <LinkIcon size={10} /> : <FileText size={10} />}
+                  {file.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="relative group">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -296,110 +339,119 @@ export function TeacherChat({ teacher, onBack, onAddMessage, onAddFile, onClearC
                   handleSend();
                 }
               }}
-              placeholder="Pergunte algo ao professor..."
-              className="w-full bg-stone-100 border-transparent focus:bg-white focus:border-stone-300 focus:ring-0 rounded-2xl py-3 pl-4 pr-12 resize-none max-h-32 min-h-[52px] transition-all"
+              placeholder={selectedChatSourceId 
+                ? `Pergunte sobre "${teacher.files.find(f => f.id === selectedChatSourceId)?.name}"...` 
+                : (selectedChatTopicId 
+                  ? `Pergunte sobre "${teacher.topics?.find(t => t.id === selectedChatTopicId)?.name}"...` 
+                  : "Pergunte algo ao professor...")
+              }
+              className="w-full bg-bg-card border border-border-subtle focus:bg-border-subtle focus:border-border-strong focus:ring-0 rounded-[24px] py-5 pl-6 pr-16 resize-none max-h-48 min-h-[64px] transition-all text-sm placeholder:text-text-muted/50 text-text-primary"
               rows={1}
             />
             <button
               type="submit"
               disabled={!input.trim() || isLoading}
-              className="absolute right-2 bottom-2 p-2 text-white bg-stone-900 rounded-xl hover:bg-stone-800 disabled:opacity-50 disabled:bg-stone-300 transition-colors"
+              className="absolute right-3 bottom-3 p-3 text-bg-main bg-text-primary rounded-2xl hover:opacity-90 disabled:opacity-20 transition-all active:scale-95"
             >
-              <Send size={18} />
+              <Send size={20} />
             </button>
           </div>
         </form>
       </div>
 
-      {/* Clear Chat Modal */}
+      {/* Summary Selection Modal */}
       <AnimatePresence>
-        {isClearModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        {isSummaryModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col"
+              className="bg-bg-card border border-border-strong rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col"
             >
-              <div className="p-6 border-b border-stone-100">
-                <h2 className="text-xl font-serif font-bold text-stone-900">Limpar Chat</h2>
+              <div className="p-8 border-b border-border-subtle">
+                <h2 className="text-xl font-bold text-text-primary">Selecionar Fontes para Sumário</h2>
               </div>
-              <div className="p-6">
-                <p className="text-stone-600 mb-6">
-                  Tem certeza que deseja limpar todo o histórico de chat com <strong>{teacher.name}</strong>? Esta ação não pode ser desfeita.
+              <div className="p-8 overflow-y-auto max-h-[50vh]">
+                <p className="text-text-muted mb-6 text-sm">
+                  Escolha quais arquivos e links devem ser incluídos na geração do sumário.
                 </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setIsClearModalOpen(false)}
-                    className="flex-1 px-4 py-3 rounded-xl font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={confirmClearChat}
-                    className="flex-1 px-4 py-3 rounded-xl font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
-                  >
-                    Limpar
-                  </button>
+                <div className="space-y-3">
+                  {teacher.files.map((file) => (
+                    <button
+                      key={file.id}
+                      onClick={() => toggleFileSelection(file.id)}
+                      className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${
+                        selectedFileIds.includes(file.id)
+                          ? 'bg-border-strong border-border-strong text-text-primary'
+                          : 'bg-bg-main border-border-subtle text-text-muted hover:border-border-strong'
+                      }`}
+                    >
+                      <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                        selectedFileIds.includes(file.id)
+                          ? 'bg-text-primary border-text-primary'
+                          : 'bg-transparent border-border-strong'
+                      }`}>
+                        {selectedFileIds.includes(file.id) && <X size={14} className="text-bg-main" />}
+                      </div>
+                      {file.type === 'link' ? <LinkIcon size={16} className="text-blue-400" /> : <FileText size={16} className="text-orange-400" />}
+                      <span className="text-sm font-medium truncate">{file.name}</span>
+                    </button>
+                  ))}
                 </div>
+              </div>
+              <div className="p-8 border-t border-border-subtle flex gap-3">
+                <button
+                  onClick={() => setIsSummaryModalOpen(false)}
+                  className="flex-1 px-6 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted bg-border-subtle hover:bg-border-strong transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmSummary}
+                  disabled={selectedFileIds.length === 0}
+                  className="flex-1 px-6 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-bg-main bg-text-primary hover:opacity-90 transition-colors disabled:opacity-20"
+                >
+                  Gerar Sumário
+                </button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* Link Modal */}
+      {/* Clear Chat Modal */}
       <AnimatePresence>
-        {isLinkModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        {isClearModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col"
+              className="bg-bg-card border border-border-strong rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col"
             >
-              <div className="p-6 border-b border-stone-100">
-                <h2 className="text-xl font-serif font-bold text-stone-900">Adicionar Link</h2>
+              <div className="p-8 border-b border-border-subtle">
+                <h2 className="text-xl font-bold text-text-primary">Limpar Chat</h2>
               </div>
-              <form onSubmit={handleAddLink} className="p-6 flex flex-col gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">URL do Link</label>
-                  <input
-                    type="url"
-                    required
-                    value={linkUrl}
-                    onChange={(e) => setLinkUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-stone-900 focus:border-transparent transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">Nome (Opcional)</label>
-                  <input
-                    type="text"
-                    value={linkName}
-                    onChange={(e) => setLinkName(e.target.value)}
-                    placeholder="Ex: Artigo sobre IA"
-                    className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-stone-900 focus:border-transparent transition-all"
-                  />
-                </div>
-                <div className="flex gap-2 mt-2">
+              <div className="p-8">
+                <p className="text-text-muted mb-8 leading-relaxed">
+                  Tem certeza que deseja limpar todo o histórico de chat com <strong className="text-text-primary">{teacher.name}</strong>? Esta ação não pode ser desfeita.
+                </p>
+                <div className="flex gap-3">
                   <button
-                    type="button"
-                    onClick={() => setIsLinkModalOpen(false)}
-                    className="flex-1 px-4 py-3 rounded-xl font-medium text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors"
+                    onClick={() => setIsClearModalOpen(false)}
+                    className="flex-1 px-6 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted bg-border-subtle hover:bg-border-strong transition-colors"
                   >
                     Cancelar
                   </button>
                   <button
-                    type="submit"
-                    disabled={!linkUrl}
-                    className="flex-1 px-4 py-3 rounded-xl font-medium text-white bg-stone-900 hover:bg-stone-800 transition-colors disabled:opacity-50"
+                    onClick={confirmClearChat}
+                    className="flex-1 px-6 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white bg-red-500 hover:bg-red-600 transition-colors"
                   >
-                    Adicionar
+                    Limpar
                   </button>
                 </div>
-              </form>
+              </div>
             </motion.div>
           </div>
         )}
