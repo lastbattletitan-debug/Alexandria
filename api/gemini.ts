@@ -29,10 +29,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const ai = new GoogleGenAI({ apiKey: apiKey });
 
     // List of models to try in order of preference
+    // Prioritizing gemini-1.5-flash as requested for large text processing stability
     const modelsToTry = [
+      'gemini-1.5-flash',
       'gemini-3-flash-preview',
-      'gemini-2.0-flash-exp',
-      'gemini-1.5-flash'
+      'gemini-2.0-flash-exp'
     ];
 
     let lastError;
