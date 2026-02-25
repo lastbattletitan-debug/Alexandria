@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library, Search, Bell, Settings, GraduationCap, Sun, Moon, Brain } from 'lucide-react';
+import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library, Search, Bell, Settings, GraduationCap, Sun, Moon, Brain, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTeachers } from './hooks/useTeachers';
 import { TeacherCard } from './components/TeacherCard';
@@ -44,8 +44,8 @@ export default function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [defaultRole, setDefaultRole] = useState<'Professor' | 'Mentor' | ''>('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [userName, setUserName] = useState('Julian Smith');
-  const [userImage, setUserImage] = useState('https://picsum.photos/seed/user/100/100');
+  const [userName, setUserName] = useState('Seu nome');
+  const [userImage, setUserImage] = useState('');
   const [userPlan, setUserPlan] = useState('Desconhecido');
 
   useEffect(() => {
@@ -565,12 +565,18 @@ export default function App() {
                       <p className="text-sm font-bold text-text-primary">{userName}</p>
                       <p className="text-[10px] text-text-muted uppercase tracking-widest font-bold">{userPlan === 'Pro' ? 'Membro Pro' : 'Membro Standard'}</p>
                     </div>
-                    <img 
-                      src={userImage} 
-                      alt="User" 
-                      className="w-10 h-10 rounded-xl object-cover border border-border-strong"
-                      referrerPolicy="no-referrer"
-                    />
+                    {userImage ? (
+                      <img 
+                        src={userImage} 
+                        alt="User" 
+                        className="w-10 h-10 rounded-xl object-cover border border-border-strong"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl border border-border-strong bg-bg-card flex items-center justify-center text-text-muted">
+                        <User size={20} />
+                      </div>
+                    )}
                   </div>
                 </div>
               </header>

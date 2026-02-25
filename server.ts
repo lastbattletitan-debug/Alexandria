@@ -115,7 +115,7 @@ async function createServer() {
     
     try {
       const model = ai.models.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
-      const fileContent = files.map((f: any) => `Conteúdo do arquivo ${f.name}:\n${f.content}`).join('\n\n');
+      const fileContent = files.map((f: any) => `--- INÍCIO DO ARQUIVO: ${f.name} ---\n\n${f.content}\n\n--- FIM DO ARQUIVO: ${f.name} ---`).join('\n\n');
       const prompt = `Você é um especialista em ${teacher.specialty}. Resuma o seguinte conteúdo de forma concisa e clara:\n\n${fileContent}`;
       const result = await model.generateContent(prompt);
       const response = await result.response;
