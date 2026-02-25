@@ -26,14 +26,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Initialize Gemini client inside the handler
+    // Note: The SDK might log a warning if both GEMINI_API_KEY and GOOGLE_API_KEY are set in the environment.
+    // This is harmless as we explicitly pass the apiKey here.
+    console.log(`Initializing Gemini Client (Source: ${process.env.GEMINI_API_KEY ? 'GEMINI_API_KEY' : 'GOOGLE_API_KEY/Other'})...`);
     const ai = new GoogleGenAI({ apiKey: apiKey });
 
     // List of models to try in order of preference
-    // Prioritizing gemini-1.5-flash as requested for large text processing stability
+    // Updated to use currently available models. 'gemini-1.5-flash' was returning 404.
     const modelsToTry = [
-      'gemini-1.5-flash',
-      'gemini-3-flash-preview',
-      'gemini-2.0-flash-exp'
+      'gemini-2.0-flash-exp',   // Mais recente e rápido
+      'gemini-flash-latest',    // Alias para a versão flash estável mais atual
+      'gemini-3-flash-preview'  // Preview da próxima geração
     ];
 
     let lastError;
