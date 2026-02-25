@@ -675,8 +675,10 @@ export default function App() {
             setUserName(name);
             setUserImage(image);
           }}
-          onCheckPlan={() => { // Placeholder for now
-            alert('Verificando plano... esta funcionalidade será implementada em breve.');
+          onCheckPlan={async () => {
+            const res = await fetch('/api/check-plan');
+            const data = await res.json();
+            setUserPlan(data.plan);
           }}
         />
 

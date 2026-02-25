@@ -9,7 +9,7 @@ interface ProfileModalProps {
   userImage: string;
   userPlan: string;
   onUpdateProfile: (name: string, image: string) => void;
-  onCheckPlan: () => void;
+  onCheckPlan: () => Promise<void>;
 }
 
 export function ProfileModal({ 
@@ -133,7 +133,7 @@ export function ProfileModal({
                     <p className="font-mono text-lg text-text-primary bg-border-subtle px-4 py-2 rounded-lg inline-block">{userPlan}</p>
                 </div>
                 <button 
-                  onClick={onCheckPlan}
+                  onClick={async () => await onCheckPlan()}
                   className="w-full bg-border-strong text-text-primary font-bold text-[10px] uppercase tracking-widest py-3 px-4 rounded-xl hover:opacity-90 transition-all">
                   Verificar Plano da Chave API
                 </button>
