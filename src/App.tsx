@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library, Search, Bell, Settings, GraduationCap, Sun, Moon, Brain, User } from 'lucide-react';
+import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library as LibraryIcon, Search, Bell, Settings, GraduationCap, Sun, Moon, Brain, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTeachers } from './hooks/useTeachers';
 
@@ -10,6 +10,7 @@ import { TeacherBrain } from './components/TeacherBrain';
 import { Teacher, Topic } from './types';
 import { TeacherTopics } from './components/TeacherTopics';
 import { ProfileModal } from './components/ProfileModal';
+import { Library } from './components/Library';
 
 
 type ViewMode = 'grid' | 'list' | 'categories';
@@ -62,22 +63,7 @@ export default function App() {
     }
   }, [theme]);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const res = await fetch('/api/auth/user');
-        if (res.ok) {
-          const user = await res.json();
-          setUserName(user.name);
-          setUserImage(user.picture);
-        }
-      } catch (error) {
-        console.error('Failed to fetch user:', error);
-      }
-    };
 
-    fetchUser();
-  }, []);
 
   const filteredTeachers = useMemo(() => {
     return teachers.filter(t => 
@@ -256,15 +242,7 @@ export default function App() {
     }
 
     if (activeTab === 'biblioteca') {
-      return (
-        <div className="flex-1 flex flex-col items-center justify-center text-text-muted border border-dashed border-border-strong rounded-[32px] p-12 mt-8 bg-border-subtle">
-          <Library size={64} className="mb-4 opacity-20" />
-          <h2 className="text-2xl font-bold text-text-primary mb-2">Sua Biblioteca</h2>
-          <p className="text-center max-w-md opacity-60">
-            Em breve você poderá gerenciar todos os seus arquivos e links em um só lugar.
-          </p>
-        </div>
-      );
+      return <Library />;
     }
 
     // Professores Tab
@@ -423,6 +401,13 @@ export default function App() {
           >
             <Users size={20} />
             <span className="font-medium text-sm">Mentores</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('biblioteca')}
+            className={`flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === 'biblioteca' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
+          >
+            <LibraryIcon size={20} />
+            <span className="font-medium text-sm">Biblioteca</span>
           </button>
           
         </nav>

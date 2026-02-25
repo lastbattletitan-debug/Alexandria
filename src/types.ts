@@ -1,4 +1,16 @@
 
+export type LibraryBook = {
+  id: string;
+  title: string;
+  author?: string;
+  coverUrl?: string;
+  pageCount: number;
+  currentPage: number;
+  fileData?: string; // base64 encoded PDF data
+  fileName: string;
+  createdAt: string;
+};
+
 export type TeacherFile = {
   id: string;
   name: string;
