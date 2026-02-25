@@ -129,17 +129,7 @@ export default function App() {
     if (activeTab === 'mentores') {
       const mentors = filteredTeachers.filter(t => t.role === 'Mentor');
 
-      if (mentors.length === 0) {
-        return (
-          <div className="flex-1 flex flex-col items-center justify-center text-text-muted border border-dashed border-border-strong rounded-[32px] p-12 mt-8 bg-border-subtle">
-            <Users size={64} className="mb-4 opacity-20" />
-            <h2 className="text-2xl font-bold text-text-primary mb-2">Área de Mentores</h2>
-            <p className="text-center max-w-md opacity-60">
-              Em breve você poderá adicionar mentores especializados aqui.
-            </p>
-          </div>
-        );
-      }
+
 
       if (viewMode === 'list') {
         return (

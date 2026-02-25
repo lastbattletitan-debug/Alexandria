@@ -1,8 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
 import { Teacher, ChatMessage, TeacherFile, Topic } from '../types';
-
-const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
 export async function chatWithTeacher(
   teacher: Teacher,
@@ -11,32 +7,47 @@ export async function chatWithTeacher(
   selectedFileIds?: string[],
   topic?: Topic
 ): Promise<string> {
-  if (!apiKey) {
-    return 'Erro: Chave de API do Gemini não configurada.';
-  }
-
   try {
-    const chat = ai.chats.create({
-      model: 'gemini-3-flash-preview',
-      config: {
-        systemInstruction: teacher.systemInstruction,
+    // Construir o prompt com base no histórico e na mensagem atual
+    const historyText = history
+      .map((msg) => `${msg.role === 'user' ? 'User' : 'Model'}: ${msg.text}`)
+      .join('\n');
+    
+    const prompt = `
+      ${teacher.systemInstruction}
+      
+      Histórico da conversa:
+      ${historyText}
+      
+      User: ${message}
+      Model:
+    `;
+
+    const response = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      history: history.map((msg) => ({ role: msg.role, parts: [{ text: msg.text }] })),
+      body: JSON.stringify({
+        text: message, 
+        prompt: prompt,
+      }),
     });
 
-    const response = await chat.sendMessage({ message });
-    return response.text || 'Desculpe, não consegui responder.';
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to get response from Gemini API');
+    }
+
+    const data = await response.json();
+    return data.text;
   } catch (error) {
     console.error('Error chatting with teacher:', error);
-    return 'Ocorreu um erro ao processar sua mensagem.';
+    return 'Desculpe, não consegui responder no momento. Tente novamente mais tarde.';
   }
 }
 
 export async function generateSummary(teacher: Teacher, selectedFiles?: TeacherFile[]): Promise<string> {
-  if (!apiKey) {
-    return 'Erro: Chave de API do Gemini não configurada.';
-  }
-
   const filesToSummarize = selectedFiles || teacher.files;
   
   if (filesToSummarize.length === 0) {
@@ -47,12 +58,27 @@ export async function generateSummary(teacher: Teacher, selectedFiles?: TeacherF
     const fileContent = filesToSummarize.map((f) => `--- INÍCIO DO ARQUIVO: ${f.name} ---\n\n${f.data}\n\n--- FIM DO ARQUIVO: ${f.name} ---`).join('\n\n');
     const prompt = `Você é um especialista em ${teacher.specialty}. Resuma o seguinte conteúdo de forma concisa e clara:\n\n${fileContent}`;
     
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: { parts: [{ text: prompt }] },
+    const response = await fetch('/api/gemini', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: fileContent,
+        prompt: prompt,
+      }),
     });
 
-    return response.text || 'Não foi possível gerar o sumário.';
+    if (!response.ok) {
+      const errorData = await response.json();
+      if (response.status === 413) {
+        return 'O conteúdo é muito grande para ser processado. Tente enviar arquivos menores.';
+      }
+      throw new Error(errorData.error || 'Failed to get summary from Gemini API');
+    }
+
+    const data = await response.json();
+    return data.text;
   } catch (error) {
     console.error('Error generating summary:', error);
     return 'Ocorreu um erro ao gerar o sumário dos arquivos.';

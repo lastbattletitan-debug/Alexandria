@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, FileText, Trash2, BookOpen, Loader2, Plus, ExternalLink } from 'lucide-react';
+import { Upload, FileText, Trash2, BookOpen, Loader2, Plus, ExternalLink, X } from 'lucide-react';
 import { useLibrary } from '../hooks/useLibrary';
 import { LibraryBook } from '../types';
+import { generatePdfThumbnail } from '../utils/pdfUtils';
 
 interface LibraryProps {
   zoomLevel?: number;
@@ -11,6 +12,7 @@ interface LibraryProps {
 export function Library({ zoomLevel = 1 }: LibraryProps) {
   const { books, addBook, removeBook, updateBookProgress } = useLibrary();
   const [isUploading, setIsUploading] = useState(false);
+  const [readingBook, setReadingBook] = useState<LibraryBook | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -24,22 +26,29 @@ export function Library({ zoomLevel = 1 }: LibraryProps) {
     setIsUploading(true);
     for (const file of files) {
       if (file.type === 'application/pdf') {
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          const base64 = event.target?.result as string;
-          // Simulating page count for now as we don't have a PDF parser
-          const simulatedPageCount = Math.floor(Math.random() * 300) + 50; 
+        try {
+          // Generate thumbnail
+          const thumbnail = await generatePdfThumbnail(file);
           
-          addBook({
-            title: file.name.replace('.pdf', ''),
-            fileName: file.name,
-            pageCount: simulatedPageCount,
-            currentPage: 0,
-            fileData: base64,
-            coverUrl: '', // Will use fallback
-          });
-        };
-        reader.readAsDataURL(file);
+          const reader = new FileReader();
+          reader.onload = async (event) => {
+            const base64 = event.target?.result as string;
+            // Simulating page count for now as we don't have a PDF parser
+            const simulatedPageCount = Math.floor(Math.random() * 300) + 50; 
+            
+            addBook({
+              title: file.name.replace('.pdf', ''),
+              fileName: file.name,
+              pageCount: simulatedPageCount,
+              currentPage: 0,
+              fileData: base64,
+              coverUrl: thumbnail, // Use generated thumbnail
+            });
+          };
+          reader.readAsDataURL(file);
+        } catch (error) {
+          console.error('Error processing PDF:', error);
+        }
       }
     }
     setIsUploading(false);
@@ -47,14 +56,11 @@ export function Library({ zoomLevel = 1 }: LibraryProps) {
 
   const openBook = (book: LibraryBook) => {
     if (!book.fileData) return;
-    
-    // Create a blob from the base64 data to open in a new tab
-    fetch(book.fileData)
-      .then(res => res.blob())
-      .then(blob => {
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-      });
+    setReadingBook(book);
+  };
+
+  const closeBook = () => {
+    setReadingBook(null);
   };
 
   // Generate a consistent color based on the string
@@ -68,14 +74,7 @@ export function Library({ zoomLevel = 1 }: LibraryProps) {
   };
 
   return (
-    <div className="flex-1 flex flex-col p-8 sm:p-12 overflow-y-auto">
-      <header className="flex items-center justify-between gap-8 mb-12">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary mb-2">Sua Biblioteca</h1>
-          <p className="text-text-muted">Gerencie seus livros e acompanhe seu progresso de leitura.</p>
-        </div>
-      </header>
-
+    <div className="flex-1 flex flex-col p-8 sm:p-12 overflow-y-auto relative">
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -91,7 +90,7 @@ export function Library({ zoomLevel = 1 }: LibraryProps) {
           gridTemplateColumns: `repeat(auto-fill, minmax(${280 * zoomLevel}px, 1fr))` 
         }}
       >
-        {/* Upload Card */}
+        {/* Upload Card - Always First */}
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
@@ -149,7 +148,7 @@ export function Library({ zoomLevel = 1 }: LibraryProps) {
                     className="p-3 bg-text-primary text-bg-main rounded-xl hover:scale-110 transition-all"
                     title="Ler livro"
                   >
-                    <ExternalLink size={20} />
+                    <BookOpen size={20} />
                   </button>
                   <button 
                     onClick={(e) => { e.stopPropagation(); removeBook(book.id); }}
@@ -194,6 +193,37 @@ export function Library({ zoomLevel = 1 }: LibraryProps) {
           ))}
         </AnimatePresence>
       </div>
+
+      {/* PDF Reader Modal */}
+      <AnimatePresence>
+        {readingBook && readingBook.fileData && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-bg-main flex flex-col"
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle bg-bg-sidebar">
+              <h2 className="text-lg font-bold text-text-primary truncate max-w-2xl">
+                {readingBook.title}
+              </h2>
+              <button
+                onClick={closeBook}
+                className="p-2 hover:bg-border-subtle rounded-full transition-colors"
+              >
+                <X size={24} className="text-text-muted hover:text-text-primary" />
+              </button>
+            </div>
+            <div className="flex-1 bg-gray-900 relative">
+              <iframe
+                src={readingBook.fileData}
+                className="w-full h-full border-0"
+                title={readingBook.title}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
