@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Send, FileText, Loader2, BookOpen, Link as LinkIcon, Trash2, X, Brain, Bookmark, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Send, FileText, Loader2, BookOpen, Link as LinkIcon, Trash2, Brain, Bookmark, ChevronDown } from 'lucide-react';
 
 import ReactMarkdown from 'react-markdown';
 import { Teacher, ChatMessage, TeacherFile, Topic } from '../types';
-import { chatWithTeacher, generateSummary } from '../services/gemini';
+import { chatWithTeacher, generateSummary } from '../services/aiService';
 
 interface TeacherChatProps {
   teacher: Teacher;
@@ -23,6 +23,8 @@ export function TeacherChat({
   currentTopic,
   onBack, 
   onAddMessage, 
+  onAddFile,
+  onRemoveFile,
   onClearChat, 
   onOpenBrain,
   onOpenTopics
@@ -189,7 +191,7 @@ export function TeacherChat({
               title="Meus Tópicos"
             >
               <Bookmark size={16} />
-              <span className="hidden sm:inline">Meus Tópicos</span>
+              <span className="inline">Meus Tópicos</span>
             </button>
           )}
           <button
@@ -198,7 +200,7 @@ export function TeacherChat({
             title="Limpar Chat"
           >
             <Trash2 size={16} />
-            <span className="hidden sm:inline">Limpar Chat</span>
+            <span className="inline">Limpar Chat</span>
           </button>
           <button
             onClick={handleSummary}
@@ -206,8 +208,7 @@ export function TeacherChat({
             className="flex items-center gap-2 bg-text-primary text-bg-main px-6 py-2.5 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSummarizing ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
-            <span className="hidden sm:inline">Gerar Sumário</span>
-            <span className="sm:hidden">Sumário</span>
+            <span className="inline">Gerar Sumário</span>
           </button>
 
 
@@ -248,7 +249,7 @@ export function TeacherChat({
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[85%] sm:max-w-[75%] rounded-[24px] px-6 py-5 leading-relaxed ${
+                className={`max-w-[75%] rounded-[24px] px-6 py-5 leading-relaxed ${
                   msg.role === 'user'
                     ? 'bg-text-primary text-bg-main font-medium'
                     : 'bg-bg-card border border-border-subtle text-text-primary'

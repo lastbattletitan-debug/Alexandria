@@ -17,20 +17,20 @@ async function createServer() {
   // So we only need this manual routing when running locally with `npm run dev`
   if (!process.env.VERCEL) {
     try {
-      // Dynamically import the handler
-      // We use dynamic import to avoid "module not found" errors in production environments
-      // where the file structure might be different (e.g. Vercel Serverless Functions)
-      // and server.ts might be executed differently or not at all
-      const geminiModule = await import('./api/gemini');
-      const geminiHandler = geminiModule.default;
+      const aiModule = await import('./api/ai');
+      const aiHandler = aiModule.default;
       
       app.post('/api/gemini', async (req, res) => {
         // @ts-ignore - Vercel types compatibility
-        await geminiHandler(req as any, res as any);
+        await aiHandler(req as any, res as any);
       });
-      console.log('Local API route /api/gemini registered');
+
+      app.post('/api/ai', async (req, res) => {
+        // @ts-ignore - Vercel types compatibility
+        await aiHandler(req as any, res as any);
+      });
     } catch (error) {
-      console.warn('Could not load local API handler for /api/gemini:', error);
+      console.warn('Could not load local API handler for /api/ai:', error);
     }
   }
 
@@ -67,7 +67,6 @@ if (!process.env.VERCEL) {
     const server = await app;
     const PORT = 3000;
     server.listen(PORT, '0.0.0.0', () => {
-      console.log(`Servidor rodando em http://localhost:${PORT}`);
     });
   })();
 }

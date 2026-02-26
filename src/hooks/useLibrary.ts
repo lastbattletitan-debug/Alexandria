@@ -38,11 +38,11 @@ export function useLibrary() {
     }
   }, [books, isLoaded]);
 
-  const addBook = (book: Omit<LibraryBook, 'id' | 'createdAt'>) => {
+  const addBook = (book: Omit<LibraryBook, 'id' | 'addedAt'>) => {
     const newBook: LibraryBook = {
       ...book,
       id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
+      addedAt: new Date().toISOString(),
     };
     setBooks((prev) => [...prev, newBook]);
     return newBook;
@@ -52,16 +52,9 @@ export function useLibrary() {
     setBooks((prev) => prev.filter((b) => b.id !== id));
   };
 
-  const updateBookProgress = (id: string, currentPage: number) => {
-    setBooks((prev) =>
-      prev.map((b) => (b.id === id ? { ...b, currentPage: Math.min(currentPage, b.pageCount) } : b))
-    );
-  };
-
   return {
     books,
     addBook,
     removeBook,
-    updateBookProgress,
   };
 }

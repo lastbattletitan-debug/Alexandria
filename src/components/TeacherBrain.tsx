@@ -8,7 +8,6 @@ import {
   FileText, 
   X, 
   Save, 
-  Plus, 
   Trash2,
   Info,
   MessageSquare,

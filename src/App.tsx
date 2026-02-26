@@ -1,17 +1,17 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library as LibraryIcon, Search, Bell, Settings, GraduationCap, Sun, Moon, Brain, User } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library as LibraryIcon, Search, Bell, Settings, GraduationCap, Sun, Moon, Brain, User, BookOpen, Loader2, X, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTeachers } from './hooks/useTeachers';
+import { useLibrary } from './hooks/useLibrary';
+import { generatePdfThumbnail } from './utils/pdfUtils';
 
 import { TeacherCard } from './components/TeacherCard';
 import { TeacherModal } from './components/TeacherModal';
 import { TeacherChat } from './components/TeacherChat';
 import { TeacherBrain } from './components/TeacherBrain';
-import { Teacher, Topic } from './types';
+import { Teacher, Topic, LibraryBook } from './types';
 import { TeacherTopics } from './components/TeacherTopics';
 import { ProfileModal } from './components/ProfileModal';
-import { Library } from './components/Library';
-
 
 type ViewMode = 'grid' | 'list' | 'categories';
 type Tab = 'professores' | 'mentores' | 'biblioteca';
@@ -44,7 +44,6 @@ export default function App() {
   const [teacherToDelete, setTeacherToDelete] = useState<Teacher | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Independent zoom levels for each tab
   const [zoomLevels, setZoomLevels] = useState<{ [key in Tab]: number }>({
     professores: 1,
     mentores: 1,
@@ -59,7 +58,12 @@ export default function App() {
   const [userImage, setUserImage] = useState('');
   const [userPlan, setUserPlan] = useState('Desconhecido');
 
-  // Helper to get/set current zoom
+  // Library states
+  const { books, addBook, removeBook } = useLibrary();
+  const [isUploading, setIsUploading] = useState(false);
+  const [readingBook, setReadingBook] = useState<LibraryBook | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const currentZoom = zoomLevels[activeTab];
   const setZoom = (value: number) => {
     setZoomLevels(prev => ({ ...prev, [activeTab]: value }));
@@ -75,8 +79,6 @@ export default function App() {
       root.style.colorScheme = 'dark';
     }
   }, [theme]);
-
-
 
   const filteredTeachers = useMemo(() => {
     return teachers.filter(t => 
@@ -96,270 +98,138 @@ export default function App() {
     } else {
       addTeacher(teacherData);
     }
+    setIsModalOpen(false);
+    setEditingTeacher(null);
   };
 
-  const openEditModal = (e: React.MouseEvent, teacher: Teacher) => {
-    e.stopPropagation();
-    setEditingTeacher(teacher);
+  const openAddModal = (role: 'Professor' | 'Mentor') => {
+    setDefaultRole(role);
+    setEditingTeacher(null);
     setIsModalOpen(true);
-  };
-
-  const handleDeleteTeacher = (e: React.MouseEvent, teacher: Teacher) => {
-    e.stopPropagation();
-    setTeacherToDelete(teacher);
   };
 
   const confirmDeleteTeacher = () => {
     if (teacherToDelete) {
       deleteTeacher(teacherToDelete.id);
-      if (selectedTeacherId === teacherToDelete.id) {
-        setSelectedTeacherId(null);
-      }
       setTeacherToDelete(null);
     }
   };
 
-  const openAddModal = (role: 'Professor' | 'Mentor') => {
-    setEditingTeacher(null);
-    setDefaultRole(role);
-    setIsModalOpen(true);
+  const handleBookUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || file.type !== 'application/pdf') return;
+
+    setIsUploading(true);
+    try {
+      const thumbnail = await generatePdfThumbnail(file);
+      const newBook = addBook({
+        title: file.name.replace('.pdf', ''),
+        author: 'Desconhecido',
+        thumbnail,
+        url: URL.createObjectURL(file),
+      });
+      setReadingBook(newBook);
+    } catch (error) {
+      console.error('Erro ao carregar livro:', error);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const renderContent = () => {
-    if (activeTab === 'mentores') {
-      const mentors = filteredTeachers.filter(t => t.role === 'Mentor');
-
-
-
-      if (viewMode === 'list') {
-        return (
-          <div className="flex flex-col gap-4 mt-8">
-            {mentors.map((teacher) => (
-              <div 
-                key={teacher.id}
-                onClick={() => setSelectedTeacherId(teacher.id)}
-                style={{ transform: `scale(${currentZoom})`, transformOrigin: 'left center' }}
-                className="group flex items-center justify-between p-6 bg-bg-card border border-border-subtle rounded-2xl hover:bg-border-strong transition-all cursor-pointer"
-              >
-                <div className="flex items-center gap-6">
-                  <img 
-                    src={teacher.imageUrl} 
-                    alt={teacher.name} 
-                    className="w-16 h-16 rounded-xl object-cover grayscale group-hover:grayscale-0 transition-all"
-                  />
-                  <div>
-                    <h3 className="text-lg font-bold text-text-primary">{teacher.name}</h3>
-                    <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-1">{teacher.specialty}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-[9px] font-bold uppercase tracking-widest bg-border-subtle px-3 py-1.5 rounded-lg border border-border-subtle text-text-muted">
-                    {teacher.category || 'Geral'}
-                  </span>
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setBrainTeacherId(teacher.id); }}
-                      className="p-3 bg-text-primary text-bg-main rounded-xl hover:scale-110 transition-all"
-                      title="Cérebro do Mentor"
-                    >
-                      <Brain size={16} />
-                    </button>
-                    <button
-                      onClick={(e) => openEditModal(e, teacher)}
-                      className="p-3 bg-border-subtle hover:bg-border-strong rounded-xl text-text-muted hover:text-text-primary transition-all"
-                    >
-                      <Plus size={16} className="rotate-45" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      }
-
-      if (viewMode === 'categories') {
-        const categories = Array.from(new Set(mentors.map(t => t.category || 'Geral')));
-        return (
-          <div className="flex flex-col gap-12 mt-8">
-            {categories.map(category => (
-              <div key={category}>
-                <h2 className="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em] mb-6 flex items-center gap-4">
-                  {category}
-                  <div className="h-[1px] flex-1 bg-border-subtle" />
-                </h2>
-                <div 
-                  className="grid gap-6"
-                  style={{ 
-                    gridTemplateColumns: `repeat(auto-fill, minmax(${280 * currentZoom}px, 1fr))` 
-                  }}
-                >
-                  {mentors.filter(t => (t.category || 'Geral') === category).map(teacher => (
-                    <TeacherCard
-                      key={teacher.id}
-                      teacher={teacher}
-                      onClick={() => setSelectedTeacherId(teacher.id)}
-                      onEdit={(e) => openEditModal(e, teacher)}
-                      onDelete={(e) => handleDeleteTeacher(e, teacher)}
-                      onOpenBrain={(e) => { e.stopPropagation(); setBrainTeacherId(teacher.id); }}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      }
-
-      // Default Grid View for Mentors
-      return (
-        <div 
-          className="grid gap-6 mt-8"
-          style={{ 
-            gridTemplateColumns: `repeat(auto-fill, minmax(${280 * currentZoom}px, 1fr))` 
-          }}
-        >
-          {mentors.map((teacher) => (
-            <TeacherCard
-              key={teacher.id}
-              teacher={teacher}
-              onClick={() => setSelectedTeacherId(teacher.id)}
-              onEdit={(e) => openEditModal(e, teacher)}
-              onDelete={(e) => handleDeleteTeacher(e, teacher)}
-              onOpenBrain={(e) => { e.stopPropagation(); setBrainTeacherId(teacher.id); }}
-            />
-          ))}
-          <button
-            onClick={() => openAddModal('Mentor')}
-            className="group relative rounded-[32px] border border-dashed border-border-strong bg-bg-card aspect-[3/4] flex flex-col items-center justify-center gap-4 hover:bg-border-strong transition-all active:scale-[0.98]"
-          >
-            <div className="w-12 h-12 rounded-full bg-border-subtle flex items-center justify-center group-hover:bg-border-strong transition-colors">
-              <Plus size={24} className="text-text-muted group-hover:text-text-primary transition-colors" />
-            </div>
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted group-hover:text-text-primary transition-colors">
-              Novo Mentor
-            </span>
-          </button>
-        </div>
-      );
-    }
-
     if (activeTab === 'biblioteca') {
-      return <Library zoomLevel={currentZoom} />;
-    }
-
-    // Professores Tab
-    if (activeTab === 'professores' && viewMode === 'list') {
       return (
-        <div className="flex flex-col gap-4 mt-8">
-          {filteredTeachers.filter(t => t.role === 'Professor').map((teacher) => (
-            <div 
-              key={teacher.id}
-              onClick={() => setSelectedTeacherId(teacher.id)}
-              style={{ transform: `scale(${currentZoom})`, transformOrigin: 'left center' }}
-              className="group flex items-center justify-between p-6 bg-bg-card border border-border-subtle rounded-2xl hover:bg-border-strong transition-all cursor-pointer"
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className="bg-bg-card border border-dashed border-white/10 rounded-[48px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
+          >
+            <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+              {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
+            </div>
+            <div className="text-center">
+              <p className="text-[11px] font-bold text-text-muted uppercase tracking-[0.2em]">Upload de Livro</p>
+            </div>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleBookUpload} 
+              accept=".pdf" 
+              className="hidden" 
+            />
+          </div>
+
+          {books.map(book => (
+            <motion.div
+              key={book.id}
+              layout
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-bg-card border border-white/5 rounded-[48px] overflow-hidden group hover:border-white/20 transition-all flex flex-col min-h-[400px]"
             >
-              <div className="flex items-center gap-6">
+              <div className="relative aspect-[3/4] overflow-hidden">
                 <img 
-                  src={teacher.imageUrl} 
-                  alt={teacher.name} 
-                  className="w-16 h-16 rounded-xl object-cover grayscale group-hover:grayscale-0 transition-all"
+                  src={book.thumbnail} 
+                  alt={book.title} 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
-                <div>
-                  <h3 className="text-lg font-bold text-text-primary">{teacher.name}</h3>
-                  <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-1">{teacher.role}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[9px] font-bold uppercase tracking-widest bg-border-subtle px-3 py-1.5 rounded-lg border border-border-subtle text-text-muted">
-                  {teacher.category || 'Geral'}
-                </span>
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setBrainTeacherId(teacher.id); }}
-                    className="p-3 bg-text-primary text-bg-main rounded-xl hover:scale-110 transition-all"
-                    title="Cérebro do Professor"
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                  <button 
+                    onClick={() => setReadingBook(book)}
+                    className="p-4 bg-white text-black rounded-full hover:scale-110 transition-transform"
                   >
-                    <Brain size={16} />
+                    <BookOpen size={24} />
                   </button>
-                  <button
-                    onClick={(e) => openEditModal(e, teacher)}
-                    className="p-3 bg-border-subtle hover:bg-border-strong rounded-xl text-text-muted hover:text-text-primary transition-all"
+                  <button 
+                    onClick={() => removeBook(book.id)}
+                    className="p-4 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"
                   >
-                    <Plus size={16} className="rotate-45" />
+                    <Trash2 size={24} />
                   </button>
                 </div>
               </div>
-            </div>
+              <div className="p-6">
+                <h3 className="text-sm font-bold text-text-primary line-clamp-1">{book.title}</h3>
+                <p className="text-[10px] text-text-muted uppercase tracking-widest font-bold mt-1">{book.author}</p>
+              </div>
+            </motion.div>
           ))}
         </div>
       );
     }
 
-    if (activeTab === 'professores' && viewMode === 'categories') {
-      const categories = Array.from(new Set(filteredTeachers.filter(t => t.role === 'Professor').map(t => t.category || 'Geral')));
-      return (
-        <div className="flex flex-col gap-12 mt-8">
-          {categories.map(category => (
-            <div key={category}>
-              <h2 className="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em] mb-6 flex items-center gap-4">
-                {category}
-                <div className="h-[1px] flex-1 bg-border-subtle" />
-              </h2>
-              <div 
-                className="grid gap-6"
-                style={{ 
-                  gridTemplateColumns: `repeat(auto-fill, minmax(${280 * currentZoom}px, 1fr))` 
-                }}
-              >
-                {filteredTeachers.filter(t => t.role === 'Professor' && (t.category || 'Geral') === category).map(teacher => (
-                  <TeacherCard
-                    key={teacher.id}
-                    teacher={teacher}
-                    onClick={() => setSelectedTeacherId(teacher.id)}
-                    onEdit={(e) => openEditModal(e, teacher)}
-                    onDelete={(e) => handleDeleteTeacher(e, teacher)}
-                    onOpenBrain={(e) => { e.stopPropagation(); setBrainTeacherId(teacher.id); }}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
+    const displayTeachers = filteredTeachers.filter(t => t.role === (activeTab === 'mentores' ? 'Mentor' : 'Professor'));
 
-    // Default Grid View for Professores
     return (
-      <div 
-        className="grid gap-6 mt-8"
-        style={{ 
-          gridTemplateColumns: `repeat(auto-fill, minmax(${280 * currentZoom}px, 1fr))` 
-        }}
-      >
-        {filteredTeachers.filter(t => t.role === 'Professor').map((teacher) => (
+      <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
+        {viewMode === 'grid' && (
+          <div 
+            onClick={() => openAddModal(activeTab === 'mentores' ? 'Mentor' : 'Professor')}
+            className="bg-bg-card border border-dashed border-white/10 rounded-[48px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
+          >
+            <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Plus className="text-text-primary" size={24} />
+            </div>
+            <div className="text-center">
+              <p className="text-[11px] font-bold text-text-muted uppercase tracking-[0.2em]">
+                {activeTab === 'mentores' ? 'Novo Mentor' : 'Novo Professor'}
+              </p>
+            </div>
+          </div>
+        )}
+        {displayTeachers.map((teacher) => (
           <TeacherCard
             key={teacher.id}
             teacher={teacher}
-            onClick={() => setSelectedTeacherId(teacher.id)}
-            onEdit={(e) => openEditModal(e, teacher)}
-            onDelete={(e) => handleDeleteTeacher(e, teacher)}
-            onOpenBrain={(e) => { e.stopPropagation(); setBrainTeacherId(teacher.id); }}
+            viewMode={viewMode}
+            zoom={currentZoom}
+            onChat={() => setSelectedTeacherId(teacher.id)}
+            onEdit={() => { setEditingTeacher(teacher); setIsModalOpen(true); }}
+            onDelete={() => setTeacherToDelete(teacher)}
+            onOpenBrain={() => setBrainTeacherId(teacher.id)}
+            onOpenTopics={() => setTopicsTeacherId(teacher.id)}
           />
         ))}
-        
-        {/* Add New Teacher Card */}
-        <button
-          onClick={() => openAddModal('Professor')}
-          className="group relative rounded-[32px] border border-dashed border-border-strong bg-bg-card aspect-[3/4] flex flex-col items-center justify-center gap-4 hover:bg-border-strong transition-all active:scale-[0.98]"
-        >
-          <div className="w-12 h-12 rounded-full bg-border-subtle flex items-center justify-center group-hover:bg-border-strong transition-colors">
-            <Plus size={24} className="text-text-muted group-hover:text-text-primary transition-colors" />
-          </div>
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted group-hover:text-text-primary transition-colors">
-            Novo Professor
-          </span>
-        </button>
       </div>
     );
   };
@@ -398,7 +268,7 @@ export default function App() {
             <LayoutGrid size={20} />
             <span className="font-medium text-sm">Professores</span>
           </button>
-                    <button 
+          <button 
             onClick={() => setActiveTab('mentores')}
             className={`flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === 'mentores' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
           >
@@ -412,11 +282,9 @@ export default function App() {
             <LibraryIcon size={20} />
             <span className="font-medium text-sm">Biblioteca</span>
           </button>
-          
         </nav>
 
         <div className="mt-auto flex flex-col gap-6 min-w-[224px]">
-          {/* Zoom Control */}
           <div className="px-6 py-4 bg-border-subtle rounded-2xl border border-border-subtle">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Zoom dos Cards</span>
@@ -440,7 +308,7 @@ export default function App() {
         </div>
       </motion.aside>
 
-      <main className={`flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300 ${isSidebarHovered ? 'lg:pl-72' : 'pl-0'}`}>
+      <main className={`flex-1 flex flex-col h-screen overflow-hidden transition-all duration-500 ${isSidebarHovered ? 'lg:pl-72' : 'pl-0'}`}>
         <AnimatePresence mode="wait">
           {brainTeacherId ? (
             <motion.div
@@ -520,10 +388,9 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex-1 flex flex-col p-8 sm:p-12 overflow-y-auto"
+              className="flex-1 flex flex-col p-12 overflow-y-auto"
             >
-              {/* Top Bar */}
-              <header className="flex items-center justify-between gap-8 mb-12">
+              <header className="flex items-center justify-between gap-8 mb-12 sticky top-0 bg-bg-main/80 backdrop-blur-md z-10 py-4">
                 <div className="flex-1 max-w-2xl relative group">
                   <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-text-primary transition-colors" size={20} />
                   <input 
@@ -539,7 +406,6 @@ export default function App() {
                   <button 
                     onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
                     className="p-2 text-text-muted hover:text-text-primary transition-all duration-300 active:scale-90"
-                    title={theme === 'dark' ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
                   >
                     {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
                   </button>
@@ -553,17 +419,12 @@ export default function App() {
                     className="flex items-center gap-4 pl-6 border-l border-border-strong cursor-pointer"
                     onClick={() => setIsProfileModalOpen(true)}
                   >
-                    <div className="text-right hidden sm:block">
+                    <div className="text-right">
                       <p className="text-sm font-bold text-text-primary">{userName}</p>
                       <p className="text-[10px] text-text-muted uppercase tracking-widest font-bold">{userPlan === 'Pro' ? 'Membro Pro' : 'Membro Standard'}</p>
                     </div>
                     {userImage ? (
-                      <img 
-                        src={userImage} 
-                        alt="User" 
-                        className="w-10 h-10 rounded-xl object-cover border border-border-strong"
-                        referrerPolicy="no-referrer"
-                      />
+                      <img src={userImage} alt="User" className="w-10 h-10 rounded-xl object-cover border border-border-strong" referrerPolicy="no-referrer" />
                     ) : (
                       <div className="w-10 h-10 rounded-xl border border-border-strong bg-bg-card flex items-center justify-center text-text-muted">
                         <User size={20} />
@@ -573,10 +434,9 @@ export default function App() {
                 </div>
               </header>
 
-              {/* Action Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
+              <div className="flex flex-row items-center justify-between gap-6 mb-8">
                 <div className="bg-bg-card rounded-full p-1.5 flex items-center border border-border-subtle">
-                                                      {(['professores', 'mentores', 'biblioteca'] as Tab[]).map((tab) => (
+                  {(['professores', 'mentores', 'biblioteca'] as Tab[]).map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
@@ -611,10 +471,7 @@ export default function App() {
                     <AnimatePresence>
                       {isMenuOpen && (
                         <>
-                          <div 
-                            className="fixed inset-0 z-30" 
-                            onClick={() => setIsMenuOpen(false)} 
-                          />
+                          <div className="fixed inset-0 z-30" onClick={() => setIsMenuOpen(false)} />
                           <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -650,7 +507,7 @@ export default function App() {
                 </div>
               </div>
 
-                            {renderContent()}
+              <div>{renderContent()}</div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -680,7 +537,6 @@ export default function App() {
           }}
         />
 
-        {/* Delete Teacher Modal */}
         <AnimatePresence>
           {teacherToDelete && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -713,6 +569,37 @@ export default function App() {
                   </div>
                 </div>
               </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {readingBook && (
+            <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-xl flex flex-col">
+              <div className="p-6 flex items-center justify-between border-b border-white/10">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-lg overflow-hidden">
+                    <img src={readingBook.thumbnail} alt="" className="w-full h-full object-cover" />
+                  </div>
+                  <div>
+                    <h2 className="text-white font-bold text-sm">{readingBook.title}</h2>
+                    <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">{readingBook.author}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setReadingBook(null)}
+                  className="p-3 bg-white/10 text-white rounded-full hover:bg-white/20 transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <iframe 
+                  src={readingBook.url} 
+                  className="w-full h-full border-none"
+                  title={readingBook.title}
+                />
+              </div>
             </div>
           )}
         </AnimatePresence>
