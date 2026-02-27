@@ -10,7 +10,9 @@ export type LibraryBook = {
   snippets?: string[];
   currentPage?: number;
   totalPages?: number;
-  category?: string;
+  categories?: string[];
+  status?: 'Próximo' | 'Lendo agora' | 'Pausado' | 'Concluído' | 'Descartado';
+  rating?: number;
 };
 
 export type TeacherFile = {

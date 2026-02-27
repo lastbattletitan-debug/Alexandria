@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { ChevronLeft, ChevronRight, Loader2, ArrowLeft, Minus, Plus, Rows, FileText, Search, X, Save, Tag } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, ArrowLeft, Minus, Plus, Rows, FileText, Search, X, Save, Tag, Info, Star, Edit2, Trash2, Check } from 'lucide-react';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { extractTextFromPdf } from '../utils/pdfUtils';
@@ -15,9 +15,17 @@ interface PdfViewerProps {
   onSaveSnippet?: (text: string) => void;
   onPageChange?: (page: number, total: number) => void;
   onOpenNotes?: () => void;
-  onUpdateCategory?: (category: string) => void;
+  onAddCategory?: (category: string) => void;
+  onRemoveCategory?: (category: string) => void;
+  onCreateCategory?: (category: string) => void;
+  onRenameCategory?: (oldName: string, newName: string) => void;
+  onDeleteCategory?: (category: string) => void;
   categories?: string[];
-  currentCategory?: string;
+  currentCategories?: string[];
+  status?: 'Próximo' | 'Lendo agora' | 'Pausado' | 'Concluído' | 'Descartado';
+  onUpdateStatus?: (status: 'Próximo' | 'Lendo agora' | 'Pausado' | 'Concluído' | 'Descartado' | undefined) => void;
+  rating?: number;
+  onUpdateRating?: (rating: number) => void;
 }
 
 export function PdfViewer({ 
@@ -27,9 +35,17 @@ export function PdfViewer({
   onSaveSnippet, 
   onPageChange,
   onOpenNotes,
-  onUpdateCategory,
+  onAddCategory,
+  onRemoveCategory,
+  onCreateCategory,
+  onRenameCategory,
+  onDeleteCategory,
   categories = [],
-  currentCategory
+  currentCategories = [],
+  status,
+  onUpdateStatus,
+  rating,
+  onUpdateRating
 }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -38,6 +54,7 @@ export function PdfViewer({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'single' | 'scroll'>('single');
+  const [isToolbarVisible, setIsToolbarVisible] = useState(false);
   
   // Search state
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -50,6 +67,10 @@ export function PdfViewer({
   // Category state
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [newCategory, setNewCategory] = useState('');
+  const [editingCategory, setEditingCategory] = useState<{ oldName: string, newName: string } | null>(null);
+
+  // Details state
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   // Selection state
   const [selection, setSelection] = useState<string | null>(null);
@@ -218,174 +239,322 @@ export function PdfViewer({
         </div>
       )}
 
-      {/* Header Bar */}
-      <div className="flex items-center justify-between px-6 py-4 bg-bg-sidebar border-b border-border-subtle shrink-0 z-10 shadow-sm gap-4">
-        {/* Left: Back & Title */}
-        <div className="flex items-center gap-4 min-w-0">
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0"
-            >
-              <ArrowLeft size={20} />
-            </button>
-          )}
-          <h2 className="font-bold text-text-primary text-sm truncate max-w-[200px] lg:max-w-md" title={title}>
-            {title || 'Documento PDF'}
-          </h2>
-        </div>
-
-        {/* Center: Page Navigation (Only visible in Single Page Mode) */}
-        {viewMode === 'single' && (
-          <div className="flex items-center gap-2 justify-center">
-            <button
-              onClick={() => changePage(-1)}
-              disabled={pageNumber <= 1}
-              className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            
-            <form onSubmit={handlePageSubmit} className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5">
-              <input
-                type="text"
-                value={inputPage}
-                onChange={(e) => setInputPage(e.target.value)}
-                className="w-8 bg-transparent text-center text-xs font-bold text-text-primary focus:outline-none"
-              />
-              <span className="text-text-muted text-xs">/ {numPages || '--'}</span>
-            </form>
-
-            <button
-              onClick={() => changePage(1)}
-              disabled={!numPages || pageNumber >= numPages}
-              className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        )}
-
-        {/* Right: Controls */}
-        <div className="flex items-center gap-4 justify-end flex-1">
-          {/* Notes Button */}
-          {onOpenNotes && (
-            <button
-              onClick={onOpenNotes}
-              className="p-2 bg-bg-card border border-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors"
-              title="Notas"
-            >
-              <FileText size={16} />
-            </button>
-          )}
-
-          {/* Category Button */}
-          {onUpdateCategory && (
-            <div className="relative">
+      {/* Header Bar - Hidden by default, shown on hover */}
+      <div 
+        className="absolute top-0 left-0 right-0 z-40 hover:opacity-100 transition-opacity duration-300"
+        style={{ opacity: isToolbarVisible || isSearchOpen || isCategoryOpen || isDetailsOpen ? 1 : 0 }}
+        onMouseEnter={() => setIsToolbarVisible(true)}
+        onMouseLeave={() => setIsToolbarVisible(false)}
+      >
+        {/* Trigger area to ensure hover works easily */}
+        <div className="h-4 w-full absolute -top-4 left-0" />
+        
+        <div className="flex items-center justify-between px-6 py-4 bg-bg-sidebar/95 backdrop-blur-md border-b border-border-subtle shadow-lg gap-4">
+          {/* Left: Back & Title */}
+          <div className="flex items-center gap-4 min-w-0">
+            {onClose && (
               <button
-                onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-                className={`p-2 rounded-xl transition-colors ${isCategoryOpen ? 'bg-text-primary text-bg-main' : 'bg-bg-card border border-border-subtle text-text-muted hover:text-text-primary'}`}
-                title="Categoria"
+                onClick={onClose}
+                className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0"
               >
-                <Tag size={16} />
+                <ArrowLeft size={20} />
+              </button>
+            )}
+            <h2 className="font-bold text-text-primary text-sm truncate max-w-[200px] lg:max-w-md" title={title}>
+              {title || 'Documento PDF'}
+            </h2>
+          </div>
+
+          {/* Center: Page Navigation (Only visible in Single Page Mode) */}
+          {viewMode === 'single' && (
+            <div className="flex items-center gap-2 justify-center">
+              <button
+                onClick={() => changePage(-1)}
+                disabled={pageNumber <= 1}
+                className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors"
+              >
+                <ChevronLeft size={18} />
               </button>
               
-              {isCategoryOpen && (
-                <div className="absolute top-full right-0 mt-2 w-64 bg-bg-card border border-border-strong rounded-xl shadow-2xl p-4 z-30 flex flex-col gap-4">
-                  <div>
-                    <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Parte 01: Criar nova categoria</p>
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        value={newCategory}
-                        onChange={(e) => setNewCategory(e.target.value)}
-                        placeholder="Nova categoria..."
-                        className="flex-1 bg-bg-main border border-border-subtle rounded-lg px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:border-border-strong"
-                      />
-                      <button 
-                        onClick={() => {
-                          if (newCategory.trim()) {
-                            onUpdateCategory(newCategory.trim());
-                            setNewCategory('');
-                            setIsCategoryOpen(false);
-                          }
-                        }}
-                        className="p-1.5 bg-text-primary text-bg-main rounded-lg hover:opacity-90"
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {categories.length > 0 && (
+              <form onSubmit={handlePageSubmit} className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5">
+                <input
+                  type="text"
+                  value={inputPage}
+                  onChange={(e) => setInputPage(e.target.value)}
+                  className="w-8 bg-transparent text-center text-xs font-bold text-text-primary focus:outline-none"
+                />
+                <span className="text-text-muted text-xs">/ {numPages || '--'}</span>
+              </form>
+
+              <button
+                onClick={() => changePage(1)}
+                disabled={!numPages || pageNumber >= numPages}
+                className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
+
+          {/* Right: Controls */}
+          <div className="flex items-center gap-4 justify-end flex-1">
+            {/* Notes Button */}
+            {onOpenNotes && (
+              <button
+                onClick={onOpenNotes}
+                className="p-2 bg-bg-card border border-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors"
+                title="Notas"
+              >
+                <FileText size={16} />
+              </button>
+            )}
+
+            {/* Details Button */}
+            {onUpdateStatus && (
+              <div className="relative">
+                <button
+                  onClick={() => setIsDetailsOpen(!isDetailsOpen)}
+                  className={`p-2 rounded-xl transition-colors ${isDetailsOpen ? 'bg-text-primary text-bg-main' : 'bg-bg-card border border-border-subtle text-text-muted hover:text-text-primary'}`}
+                  title="Detalhes do Livro"
+                >
+                  <Info size={16} />
+                </button>
+                
+                {isDetailsOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-bg-card border border-border-strong rounded-xl shadow-2xl p-4 z-30 flex flex-col gap-6">
+                    {/* Status */}
                     <div>
-                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Parte 02: Categorias existentes</p>
-                      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                        {categories.map(cat => (
+                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-3">Status</p>
+                      <div className="flex flex-col gap-2">
+                        {['Próximo', 'Lendo agora', 'Pausado', 'Concluído', 'Descartado'].map((s) => (
                           <button
-                            key={cat}
+                            key={s}
                             onClick={() => {
-                              onUpdateCategory(cat);
-                              setIsCategoryOpen(false);
+                              if (status === s) {
+                                onUpdateStatus(undefined);
+                              } else {
+                                onUpdateStatus(s as any);
+                              }
+                              setIsDetailsOpen(false);
                             }}
-                            className={`px-2 py-1 rounded-md text-xs border transition-colors ${currentCategory === cat ? 'bg-text-primary text-bg-main border-transparent' : 'bg-bg-main border-border-subtle text-text-primary hover:border-text-primary'}`}
+                            className={`px-3 py-2 rounded-lg text-xs font-medium text-left transition-colors ${status === s ? 'bg-white text-black' : 'bg-bg-main text-text-primary hover:bg-border-subtle'}`}
                           >
-                            {cat}
+                            {s}
                           </button>
                         ))}
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
 
-          {/* Search Toggle */}
-          <div className="relative">
-             <button
-              onClick={() => setIsSearchOpen(!isSearchOpen)}
-              className={`p-2 rounded-xl transition-colors ${isSearchOpen ? 'bg-text-primary text-bg-main' : 'bg-bg-card border border-border-subtle text-text-muted hover:text-text-primary'}`}
-              title="Pesquisar"
-            >
-              <Search size={16} />
-            </button>
-            
-            {isSearchOpen && (
-                <div className="absolute top-full right-0 mt-2 w-72 bg-bg-card border border-border-strong rounded-xl shadow-2xl p-3 z-30 flex flex-col gap-2">
-                    <div className="flex items-center gap-2">
+                    {/* Rating */}
+                    {onUpdateRating && (
+                      <div>
+                        <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-3">Avaliação</p>
+                        <div className="flex gap-1 justify-center bg-bg-main p-2 rounded-xl border border-border-subtle">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              onClick={() => onUpdateRating(star)}
+                              className="p-1 hover:scale-110 transition-transform"
+                            >
+                              <Star 
+                                size={20} 
+                                className={star <= (rating || 0) ? "fill-yellow-400 text-yellow-400" : "text-border-strong"} 
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Category Button */}
+            {onAddCategory && (
+              <div className="relative">
+                <button
+                  onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                  className={`p-2 rounded-xl transition-colors ${isCategoryOpen ? 'bg-text-primary text-bg-main' : 'bg-bg-card border border-border-subtle text-text-muted hover:text-text-primary'}`}
+                  title="Categoria"
+                >
+                  <Tag size={16} />
+                </button>
+                
+                {isCategoryOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-72 bg-bg-card border border-border-strong rounded-xl shadow-2xl p-4 z-30 flex flex-col gap-4">
+                    <div>
+                      <div className="flex gap-2">
                         <input 
-                            type="text" 
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && performSearch()}
-                            placeholder="Buscar..."
-                            className="flex-1 bg-bg-main border border-border-subtle rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-border-strong"
-                            autoFocus
+                          type="text" 
+                          value={newCategory}
+                          onChange={(e) => setNewCategory(e.target.value)}
+                          placeholder="Criar nova categoria..."
+                          className="flex-1 bg-bg-main border border-border-subtle rounded-lg px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:border-border-strong"
                         />
                         <button 
-                            onClick={performSearch}
-                            disabled={isSearching}
-                            className="p-1.5 bg-text-primary text-bg-main rounded-lg hover:opacity-90 disabled:opacity-50"
+                          onClick={() => {
+                            if (newCategory.trim()) {
+                              if (onCreateCategory) {
+                                onCreateCategory(newCategory.trim());
+                              }
+                              setNewCategory('');
+                            }
+                          }}
+                          className="p-1.5 bg-text-primary text-bg-main rounded-lg hover:opacity-90"
                         >
-                            {isSearching ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                          <Plus size={14} />
                         </button>
+                      </div>
                     </div>
-                    {searchResults.length > 0 && (
-                        <div className="flex items-center justify-between text-xs text-text-muted px-1">
-                            <span>{currentResultIndex + 1} de {searchResults.length}</span>
-                            <div className="flex gap-1">
-                                <button onClick={prevResult} className="p-1 hover:bg-border-subtle rounded"><ChevronLeft size={14}/></button>
-                                <button onClick={nextResult} className="p-1 hover:bg-border-subtle rounded"><ChevronRight size={14}/></button>
+                    
+                    {/* Current Categories (Tags) */}
+                    {currentCategories.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Categorias do Livro</p>
+                        <div className="flex flex-wrap gap-2">
+                          {currentCategories.map(cat => (
+                            <div key={cat} className="flex items-center gap-1 bg-text-primary text-bg-main px-2 py-1 rounded-md text-xs">
+                              <span>{cat}</span>
+                              {onRemoveCategory && (
+                                <button 
+                                  onClick={() => onRemoveCategory(cat)}
+                                  className="hover:text-red-300"
+                                >
+                                  <X size={12} />
+                                </button>
+                              )}
                             </div>
+                          ))}
                         </div>
+                      </div>
                     )}
-                    {searchQuery && !isSearching && searchResults.length === 0 && (
-                        <div className="text-xs text-text-muted text-center py-1">Nenhum resultado</div>
+                    
+                    {categories.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Categorias existentes</p>
+                        <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+                          {categories.filter(c => !currentCategories.includes(c)).map(cat => (
+                            <div key={cat} className="group flex items-center justify-between p-2 rounded-lg hover:bg-bg-main transition-colors">
+                              {editingCategory?.oldName === cat ? (
+                                <div className="flex items-center gap-2 flex-1">
+                                  <input
+                                    type="text"
+                                    value={editingCategory.newName}
+                                    onChange={(e) => setEditingCategory({ ...editingCategory, newName: e.target.value })}
+                                    className="flex-1 bg-bg-card border border-border-subtle rounded px-2 py-1 text-xs text-text-primary"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      if (editingCategory.newName.trim() && onRenameCategory) {
+                                        onRenameCategory(editingCategory.oldName, editingCategory.newName.trim());
+                                        setEditingCategory(null);
+                                      }
+                                    }}
+                                    className="p-1 text-green-400 hover:bg-white/5 rounded"
+                                  >
+                                    <Check size={12} />
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingCategory(null)}
+                                    className="p-1 text-red-400 hover:bg-white/5 rounded"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      onAddCategory(cat);
+                                      setIsCategoryOpen(false);
+                                    }}
+                                    className="text-xs text-text-primary hover:text-white flex-1 text-left"
+                                  >
+                                    {cat}
+                                  </button>
+                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {onRenameCategory && (
+                                      <button
+                                        onClick={() => setEditingCategory({ oldName: cat, newName: cat })}
+                                        className="p-1 text-text-muted hover:text-text-primary hover:bg-white/5 rounded"
+                                        title="Renomear"
+                                      >
+                                        <Edit2 size={12} />
+                                      </button>
+                                    )}
+                                    {onDeleteCategory && (
+                                      <button
+                                        onClick={() => {
+                                          if (confirm(`Tem certeza que deseja excluir a categoria "${cat}"?`)) {
+                                            onDeleteCategory(cat);
+                                          }
+                                        }}
+                                        className="p-1 text-text-muted hover:text-red-400 hover:bg-white/5 rounded"
+                                        title="Excluir"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
-                </div>
+                  </div>
+                )}
+              </div>
             )}
-          </div>
+
+            {/* Search Toggle */}
+            <div className="relative">
+               <button
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                className={`p-2 rounded-xl transition-colors ${isSearchOpen ? 'bg-text-primary text-bg-main' : 'bg-bg-card border border-border-subtle text-text-muted hover:text-text-primary'}`}
+                title="Pesquisar"
+              >
+                <Search size={16} />
+              </button>
+              
+              {isSearchOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-72 bg-bg-card border border-border-strong rounded-xl shadow-2xl p-3 z-30 flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                          <input 
+                              type="text" 
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && performSearch()}
+                              placeholder="Buscar..."
+                              className="flex-1 bg-bg-main border border-border-subtle rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-border-strong"
+                              autoFocus
+                          />
+                          <button 
+                              onClick={performSearch}
+                              disabled={isSearching}
+                              className="p-1.5 bg-text-primary text-bg-main rounded-lg hover:opacity-90 disabled:opacity-50"
+                          >
+                              {isSearching ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                          </button>
+                      </div>
+                      {searchResults.length > 0 && (
+                          <div className="flex items-center justify-between text-xs text-text-muted px-1">
+                              <span>{currentResultIndex + 1} de {searchResults.length}</span>
+                              <div className="flex gap-1">
+                                  <button onClick={prevResult} className="p-1 hover:bg-border-subtle rounded"><ChevronLeft size={14}/></button>
+                                  <button onClick={nextResult} className="p-1 hover:bg-border-subtle rounded"><ChevronRight size={14}/></button>
+                              </div>
+                          </div>
+                      )}
+                      {searchQuery && !isSearching && searchResults.length === 0 && (
+                          <div className="text-xs text-text-muted text-center py-1">Nenhum resultado</div>
+                      )}
+                  </div>
+              )}
+            </div>
 
           {/* View Mode Toggle */}
           <div className="flex items-center bg-bg-card border border-border-subtle rounded-xl p-1">
@@ -436,8 +605,9 @@ export function PdfViewer({
           </div>
         </div>
       </div>
+    </div>
 
-      {/* PDF Content */}
+    {/* PDF Content */}
       <div className="flex-1 overflow-auto flex justify-center p-8 bg-bg-main/50 relative">
         {loading && !error && (
             <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">

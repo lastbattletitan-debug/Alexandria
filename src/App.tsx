@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library as LibraryIcon, Search, Settings, GraduationCap, Sun, Moon, Brain, User, BookOpen, Loader2, X, Trash2, FileText, Tag } from 'lucide-react';
+import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library as LibraryIcon, Search, Settings, GraduationCap, Sun, Moon, Brain, User, BookOpen, Loader2, X, Trash2, FileText, Tag, Download, Edit2, Check } from 'lucide-react';
+import { jsPDF } from 'jspdf';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTeachers } from './hooks/useTeachers';
 import { useLibrary } from './hooks/useLibrary';
@@ -75,11 +76,31 @@ export default function App() {
   const [userPlan, setUserPlan] = useState('Desconhecido');
 
   // Library states
-  const { books, addBook, removeBook, addSnippet, updateBookProgress, updateBookCategory } = useLibrary();
+  const { 
+    books, 
+    globalCategories,
+    addBook, 
+    removeBook, 
+    addSnippet, 
+    updateSnippet, 
+    deleteSnippet, 
+    updateBookProgress, 
+    addBookCategory,
+    removeBookCategory,
+    updateBookStatus,
+    updateBookRating,
+    createGlobalCategory,
+    renameCategory,
+    deleteCategory
+  } = useLibrary();
   const [isUploading, setIsUploading] = useState(false);
-  const [readingBook, setReadingBook] = useState<LibraryBook | null>(null);
-  const [viewingSnippetsBook, setViewingSnippetsBook] = useState<LibraryBook | null>(null);
+  const [readingBookId, setReadingBookId] = useState<string | null>(null);
+  const [viewingSnippetsBookId, setViewingSnippetsBookId] = useState<string | null>(null);
+  const [editingSnippet, setEditingSnippet] = useState<{ index: number, text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const readingBook = useMemo(() => books.find(b => b.id === readingBookId) || null, [books, readingBookId]);
+  const viewingSnippetsBook = useMemo(() => books.find(b => b.id === viewingSnippetsBookId) || null, [books, viewingSnippetsBookId]);
 
   const currentZoom = zoomLevels[activeTab];
   const setZoom = (value: number) => {
@@ -146,7 +167,7 @@ export default function App() {
         url: URL.createObjectURL(file),
         file: file,
       });
-      setReadingBook(newBook);
+      setReadingBookId(newBook.id);
     } catch (error) {
       console.error('Erro ao carregar livro:', error);
     } finally {
@@ -154,14 +175,53 @@ export default function App() {
     }
   };
 
+  const handleExportTxt = (book: LibraryBook) => {
+    if (!book.snippets || book.snippets.length === 0) return;
+    const text = `Notas de: ${book.title}\n\n` + book.snippets.join('\n\n---\n\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${book.title}-notas.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportPdf = (book: LibraryBook) => {
+    if (!book.snippets || book.snippets.length === 0) return;
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text(`Notas: ${book.title}`, 10, 10);
+    doc.setFontSize(12);
+    
+    let y = 20;
+    book.snippets.forEach((snippet, i) => {
+      const splitText = doc.splitTextToSize(`${i + 1}. ${snippet}`, 180);
+      if (y + splitText.length * 7 > 280) {
+        doc.addPage();
+        y = 10;
+      }
+      doc.text(splitText, 10, y);
+      y += splitText.length * 7 + 5;
+    });
+    
+    doc.save(`${book.title}-notas.pdf`);
+  };
+
   const renderContent = () => {
     if (activeTab === 'biblioteca') {
+      const gridStyle = {
+        gridTemplateColumns: `repeat(auto-fill, minmax(${200 * currentZoom}px, 1fr))`
+      };
+
       if (viewMode === 'categories') {
-        const categories = Array.from(new Set(books.map(b => b.category || 'Sem Categoria')));
+        const allCategories = Array.from(new Set(books.flatMap(b => b.categories || [])));
+        const booksWithNoCategory = books.filter(b => !b.categories || b.categories.length === 0);
+        
         return (
           <div className="space-y-12 pb-24">
-            {categories.map(category => {
-              const categoryBooks = books.filter(b => (b.category || 'Sem Categoria') === category);
+            {allCategories.map(category => {
+              const categoryBooks = books.filter(b => b.categories?.includes(category));
               return (
                 <div key={category} className="space-y-6">
                   <h2 className="text-xl font-bold text-text-primary flex items-center gap-3">
@@ -172,18 +232,15 @@ export default function App() {
                     </span>
                   </h2>
                   <div 
-                    className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 origin-top-left transition-transform duration-300"
-                    style={{ 
-                      transform: `scale(${currentZoom})`,
-                      width: `${100 / currentZoom}%`
-                    }}
+                    className="grid gap-6 origin-top-left transition-all duration-300"
+                    style={gridStyle}
                   >
                     {categoryBooks.map(book => (
                       <BookCard 
                         key={book.id} 
                         book={book} 
-                        onRead={setReadingBook} 
-                        onViewNotes={setViewingSnippetsBook} 
+                        onRead={(b) => setReadingBookId(b.id)} 
+                        onViewNotes={(b) => setViewingSnippetsBookId(b.id)} 
                         onDelete={removeBook} 
                       />
                     ))}
@@ -191,6 +248,32 @@ export default function App() {
                 </div>
               );
             })}
+            
+            {booksWithNoCategory.length > 0 && (
+              <div className="space-y-6">
+                <h2 className="text-xl font-bold text-text-primary flex items-center gap-3">
+                  <Tag size={24} className="text-text-muted" />
+                  Sem Categoria
+                  <span className="text-sm font-normal text-text-muted bg-bg-card px-2 py-1 rounded-lg border border-border-subtle">
+                    {booksWithNoCategory.length}
+                  </span>
+                </h2>
+                <div 
+                  className="grid gap-6 origin-top-left transition-all duration-300"
+                  style={gridStyle}
+                >
+                  {booksWithNoCategory.map(book => (
+                    <BookCard 
+                      key={book.id} 
+                      book={book} 
+                      onRead={(b) => setReadingBookId(b.id)} 
+                      onViewNotes={(b) => setViewingSnippetsBookId(b.id)} 
+                      onDelete={removeBook} 
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
             
             <div className="pt-8 border-t border-border-subtle">
                 <h3 className="text-sm font-bold text-text-muted uppercase tracking-widest mb-6">Adicionar</h3>
@@ -220,18 +303,15 @@ export default function App() {
 
       return (
         <div 
-          className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 origin-top-left transition-transform duration-300"
-          style={{ 
-            transform: `scale(${currentZoom})`,
-            width: `${100 / currentZoom}%`
-          }}
+          className="grid gap-6 origin-top-left transition-all duration-300"
+          style={gridStyle}
         >
           {books.map(book => (
             <BookCard 
               key={book.id} 
               book={book} 
-              onRead={setReadingBook} 
-              onViewNotes={setViewingSnippetsBook} 
+              onRead={(b) => setReadingBookId(b.id)} 
+              onViewNotes={(b) => setViewingSnippetsBookId(b.id)} 
               onDelete={removeBook} 
             />
           ))}
@@ -643,7 +723,7 @@ export default function App() {
 
         <AnimatePresence>
           {viewingSnippetsBook && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -660,12 +740,31 @@ export default function App() {
                         <p className="text-sm text-text-muted">{viewingSnippetsBook.title}</p>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => setViewingSnippetsBook(null)}
-                    className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors"
-                  >
-                    <X size={24} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => handleExportTxt(viewingSnippetsBook)}
+                      className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors"
+                      title="Exportar TXT"
+                    >
+                      <span className="text-xs font-bold mr-1">TXT</span>
+                      <Download size={16} />
+                    </button>
+                    <button 
+                      onClick={() => handleExportPdf(viewingSnippetsBook)}
+                      className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors"
+                      title="Exportar PDF"
+                    >
+                      <span className="text-xs font-bold mr-1">PDF</span>
+                      <Download size={16} />
+                    </button>
+                    <div className="w-px h-6 bg-border-subtle mx-2" />
+                    <button 
+                      onClick={() => setViewingSnippetsBookId(null)}
+                      className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors"
+                    >
+                      <X size={24} />
+                    </button>
+                  </div>
                 </div>
                 <div className="p-8 overflow-y-auto space-y-4">
                   {!viewingSnippetsBook.snippets || viewingSnippetsBook.snippets.length === 0 ? (
@@ -677,26 +776,73 @@ export default function App() {
                   ) : (
                     viewingSnippetsBook.snippets.map((snippet, idx) => (
                         <div key={idx} className="bg-bg-main border border-border-subtle p-6 rounded-2xl relative group">
-                            <p className="text-text-primary text-sm leading-relaxed italic">"{snippet}"</p>
-                            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                                <button 
+                            {editingSnippet?.index === idx ? (
+                              <div className="space-y-3">
+                                <textarea
+                                  value={editingSnippet.text}
+                                  onChange={(e) => setEditingSnippet({ ...editingSnippet, text: e.target.value })}
+                                  className="w-full bg-bg-card border border-border-strong rounded-xl p-3 text-sm text-text-primary focus:outline-none focus:border-text-primary min-h-[100px]"
+                                />
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    onClick={() => setEditingSnippet(null)}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-text-muted hover:bg-border-subtle"
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button
                                     onClick={() => {
-                                        navigator.clipboard.writeText(snippet);
-                                        alert('Copiado para a área de transferência!');
+                                      updateSnippet(viewingSnippetsBook.id, idx, editingSnippet.text);
+                                      setEditingSnippet(null);
                                     }}
-                                    className="p-2 bg-bg-card border border-border-subtle rounded-lg text-text-muted hover:text-text-primary hover:bg-border-subtle transition-colors"
-                                    title="Copiar"
-                                >
-                                    <FileText size={14} />
-                                </button>
-                            </div>
+                                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-text-primary text-bg-main hover:opacity-90"
+                                  >
+                                    Salvar
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <p className="text-text-primary text-sm leading-relaxed italic">"{snippet}"</p>
+                                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-bg-main pl-2">
+                                    <button 
+                                        onClick={() => setEditingSnippet({ index: idx, text: snippet })}
+                                        className="p-2 bg-bg-card border border-border-subtle rounded-lg text-text-muted hover:text-text-primary hover:bg-border-subtle transition-colors"
+                                        title="Editar"
+                                    >
+                                        <Edit2 size={14} />
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            if (confirm('Tem certeza que deseja excluir esta nota?')) {
+                                              deleteSnippet(viewingSnippetsBook.id, idx);
+                                            }
+                                        }}
+                                        className="p-2 bg-bg-card border border-border-subtle rounded-lg text-red-400 hover:text-red-500 hover:bg-border-subtle transition-colors"
+                                        title="Excluir"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(snippet);
+                                            alert('Copiado para a área de transferência!');
+                                        }}
+                                        className="p-2 bg-bg-card border border-border-subtle rounded-lg text-text-muted hover:text-text-primary hover:bg-border-subtle transition-colors"
+                                        title="Copiar"
+                                    >
+                                        <FileText size={14} />
+                                    </button>
+                                </div>
+                              </>
+                            )}
                         </div>
                     ))
                   )}
                 </div>
                 <div className="p-6 border-t border-border-subtle bg-bg-main/50">
                     <button
-                        onClick={() => setViewingSnippetsBook(null)}
+                        onClick={() => setViewingSnippetsBookId(null)}
                         className="w-full py-4 bg-bg-card border border-border-subtle rounded-2xl text-text-primary font-bold text-xs uppercase tracking-widest hover:bg-border-subtle transition-colors"
                     >
                         Fechar
@@ -713,13 +859,21 @@ export default function App() {
               <PdfViewer 
                 url={readingBook.url} 
                 title={readingBook.title}
-                onClose={() => setReadingBook(null)}
+                onClose={() => setReadingBookId(null)}
                 onSaveSnippet={(text) => addSnippet(readingBook.id, text)}
                 onPageChange={(page, total) => updateBookProgress(readingBook.id, page, total)}
-                onOpenNotes={() => setViewingSnippetsBook(readingBook)}
-                onUpdateCategory={(category) => updateBookCategory(readingBook.id, category)}
-                categories={Array.from(new Set(books.map(b => b.category).filter(Boolean))) as string[]}
-                currentCategory={readingBook.category}
+                onOpenNotes={() => setViewingSnippetsBookId(readingBook.id)}
+                onAddCategory={(category) => addBookCategory(readingBook.id, category)}
+                onRemoveCategory={(category) => removeBookCategory(readingBook.id, category)}
+                onCreateCategory={createGlobalCategory}
+                onRenameCategory={renameCategory}
+                onDeleteCategory={deleteCategory}
+                categories={globalCategories}
+                currentCategories={readingBook.categories}
+                status={readingBook.status}
+                onUpdateStatus={(status) => updateBookStatus(readingBook.id, status)}
+                rating={readingBook.rating}
+                onUpdateRating={(rating) => updateBookRating(readingBook.id, rating)}
               />
             </div>
           )}
