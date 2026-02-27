@@ -7,6 +7,9 @@ export type LibraryBook = {
   url: string;
   file?: Blob;
   addedAt: string;
+  snippets?: string[];
+  currentPage?: number;
+  totalPages?: number;
 };
 
 export type TeacherFile = {

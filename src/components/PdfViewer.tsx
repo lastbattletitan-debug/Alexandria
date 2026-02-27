@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { ChevronLeft, ChevronRight, Loader2, ArrowLeft, Minus, Plus, Rows, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, ArrowLeft, Minus, Plus, Rows, FileText, Search, X, Save } from 'lucide-react';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
+import { extractTextFromPdf } from '../utils/pdfUtils';
 
 // Configure worker
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -11,9 +12,11 @@ interface PdfViewerProps {
   url: string;
   title?: string;
   onClose?: () => void;
+  onSaveSnippet?: (text: string) => void;
+  onPageChange?: (page: number, total: number) => void;
 }
 
-export function PdfViewer({ url, title, onClose }: PdfViewerProps) {
+export function PdfViewer({ url, title, onClose, onSaveSnippet, onPageChange }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1.0);
@@ -21,13 +24,121 @@ export function PdfViewer({ url, title, onClose }: PdfViewerProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'single' | 'scroll'>('single');
+  
+  // Search state
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<number[]>([]);
+  const [currentResultIndex, setCurrentResultIndex] = useState(0);
+  const [isSearching, setIsSearching] = useState(false);
+  const [pdfText, setPdfText] = useState<{page: number, text: string}[]>([]);
+
+  // Selection state
+  const [selection, setSelection] = useState<string | null>(null);
+  const [selectionPosition, setSelectionPosition] = useState<{top: number, left: number} | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setPageNumber(1);
     setInputPage('1');
     setError(null);
     setLoading(true);
+    setSearchResults([]);
+    setSearchQuery('');
+    setPdfText([]);
   }, [url]);
+
+  // Handle text selection
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const sel = window.getSelection();
+      if (sel && sel.toString().trim().length > 0 && containerRef.current?.contains(sel.anchorNode)) {
+        const range = sel.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        
+        // Calculate position relative to viewport but ensure it stays within bounds
+        setSelectionPosition({
+          top: rect.top - 50, // Position above selection
+          left: rect.left + (rect.width / 2) - 60 // Center horizontally
+        });
+        setSelection(sel.toString().trim());
+      } else {
+        setSelection(null);
+        setSelectionPosition(null);
+      }
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+  }, []);
+
+  const handleSaveSelection = () => {
+    if (selection && onSaveSnippet) {
+      onSaveSnippet(selection);
+      setSelection(null);
+      window.getSelection()?.removeAllRanges();
+      alert('Trecho salvo com sucesso!');
+    }
+  };
+
+  // Search functionality
+  const performSearch = async () => {
+    if (!searchQuery.trim() || !url) return;
+    
+    setIsSearching(true);
+    setSearchResults([]);
+    setCurrentResultIndex(0);
+
+    try {
+      // Lazy load text if not already loaded
+      let textData = pdfText;
+      if (textData.length === 0) {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const arrayBuffer = await blob.arrayBuffer();
+        const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
+        
+        const pages = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item: any) => item.str).join(' ');
+          pages.push({ page: i, text: pageText.toLowerCase() });
+        }
+        textData = pages;
+        setPdfText(pages);
+      }
+
+      const query = searchQuery.toLowerCase();
+      const results = textData
+        .filter(p => p.text.includes(query))
+        .map(p => p.page);
+
+      setSearchResults(results);
+      if (results.length > 0) {
+        setPageNumber(results[0]);
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const nextResult = () => {
+    if (searchResults.length === 0) return;
+    const nextIndex = (currentResultIndex + 1) % searchResults.length;
+    setCurrentResultIndex(nextIndex);
+    setPageNumber(searchResults[nextIndex]);
+  };
+
+  const prevResult = () => {
+    if (searchResults.length === 0) return;
+    const prevIndex = (currentResultIndex - 1 + searchResults.length) % searchResults.length;
+    setCurrentResultIndex(prevIndex);
+    setPageNumber(searchResults[prevIndex]);
+  };
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages);
@@ -48,9 +159,18 @@ export function PdfViewer({ url, title, onClose }: PdfViewerProps) {
     });
   };
 
+  const onPageChangeRef = useRef(onPageChange);
+
+  useEffect(() => {
+    onPageChangeRef.current = onPageChange;
+  }, [onPageChange]);
+
   useEffect(() => {
     setInputPage(pageNumber.toString());
-  }, [pageNumber]);
+    if (onPageChangeRef.current && numPages) {
+      onPageChangeRef.current(pageNumber, numPages);
+    }
+  }, [pageNumber, numPages]);
 
   const handlePageSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +183,23 @@ export function PdfViewer({ url, title, onClose }: PdfViewerProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-bg-main">
+    <div className="flex flex-col h-full bg-bg-main relative" ref={containerRef}>
+      {/* Floating Save Button */}
+      {selection && selectionPosition && (
+        <div 
+          className="fixed z-50 animate-in fade-in zoom-in duration-200"
+          style={{ top: selectionPosition.top, left: selectionPosition.left }}
+        >
+          <button
+            onClick={handleSaveSelection}
+            className="flex items-center gap-2 bg-text-primary text-bg-main px-4 py-2 rounded-full shadow-xl font-bold text-xs hover:scale-105 transition-transform"
+          >
+            <Save size={14} />
+            Salvar Trecho
+          </button>
+        </div>
+      )}
+
       {/* Header Bar */}
       <div className="flex items-center justify-between px-6 py-4 bg-bg-sidebar border-b border-border-subtle shrink-0 z-10 shadow-sm gap-4">
         {/* Left: Back & Title */}
@@ -114,6 +250,52 @@ export function PdfViewer({ url, title, onClose }: PdfViewerProps) {
 
         {/* Right: Controls */}
         <div className="flex items-center gap-4 justify-end flex-1">
+          {/* Search Toggle */}
+          <div className="relative">
+             <button
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              className={`p-2 rounded-xl transition-colors ${isSearchOpen ? 'bg-text-primary text-bg-main' : 'bg-bg-card border border-border-subtle text-text-muted hover:text-text-primary'}`}
+              title="Pesquisar"
+            >
+              <Search size={16} />
+            </button>
+            
+            {isSearchOpen && (
+                <div className="absolute top-full right-0 mt-2 w-72 bg-bg-card border border-border-strong rounded-xl shadow-2xl p-3 z-30 flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                        <input 
+                            type="text" 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && performSearch()}
+                            placeholder="Buscar..."
+                            className="flex-1 bg-bg-main border border-border-subtle rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-border-strong"
+                            autoFocus
+                        />
+                        <button 
+                            onClick={performSearch}
+                            disabled={isSearching}
+                            className="p-1.5 bg-text-primary text-bg-main rounded-lg hover:opacity-90 disabled:opacity-50"
+                        >
+                            {isSearching ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                        </button>
+                    </div>
+                    {searchResults.length > 0 && (
+                        <div className="flex items-center justify-between text-xs text-text-muted px-1">
+                            <span>{currentResultIndex + 1} de {searchResults.length}</span>
+                            <div className="flex gap-1">
+                                <button onClick={prevResult} className="p-1 hover:bg-border-subtle rounded"><ChevronLeft size={14}/></button>
+                                <button onClick={nextResult} className="p-1 hover:bg-border-subtle rounded"><ChevronRight size={14}/></button>
+                            </div>
+                        </div>
+                    )}
+                    {searchQuery && !isSearching && searchResults.length === 0 && (
+                        <div className="text-xs text-text-muted text-center py-1">Nenhum resultado</div>
+                    )}
+                </div>
+            )}
+          </div>
+
           {/* View Mode Toggle */}
           <div className="flex items-center bg-bg-card border border-border-subtle rounded-xl p-1">
             <button

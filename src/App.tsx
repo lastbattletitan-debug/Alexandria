@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library as LibraryIcon, Search, Settings, GraduationCap, Sun, Moon, Brain, User, BookOpen, Loader2, X, Trash2 } from 'lucide-react';
+import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library as LibraryIcon, Search, Settings, GraduationCap, Sun, Moon, Brain, User, BookOpen, Loader2, X, Trash2, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTeachers } from './hooks/useTeachers';
 import { useLibrary } from './hooks/useLibrary';
@@ -74,9 +74,10 @@ export default function App() {
   const [userPlan, setUserPlan] = useState('Desconhecido');
 
   // Library states
-  const { books, addBook, removeBook } = useLibrary();
+  const { books, addBook, removeBook, addSnippet, updateBookProgress } = useLibrary();
   const [isUploading, setIsUploading] = useState(false);
   const [readingBook, setReadingBook] = useState<LibraryBook | null>(null);
+  const [viewingSnippetsBook, setViewingSnippetsBook] = useState<LibraryBook | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentZoom = zoomLevels[activeTab];
@@ -166,38 +167,64 @@ export default function App() {
             <motion.div
               key={book.id}
               whileHover={{ y: -8 }}
-              className="bg-bg-card border border-white/5 rounded-[48px] overflow-hidden group hover:border-white/20 transition-all flex flex-col min-h-[400px]"
+              className="bg-bg-card border border-white/5 rounded-[32px] p-4 flex flex-col items-center gap-4 group hover:border-white/20 transition-all aspect-[3/4] relative overflow-hidden"
             >
-              <div className="relative aspect-[3/4] overflow-hidden">
-                {book.thumbnail ? (
-                  <img 
-                    src={book.thumbnail} 
-                    alt={book.title} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-bg-card flex items-center justify-center">
-                    <BookOpen size={48} className="text-text-muted opacity-20" />
+              {/* Image Container */}
+              <div className="w-full flex-1 relative rounded-2xl overflow-hidden bg-black/20">
+                  {book.thumbnail ? (
+                    <img 
+                      src={book.thumbnail} 
+                      alt={book.title} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <BookOpen size={48} className="text-text-muted opacity-20" />
+                    </div>
+                  )}
+                  
+                  {/* Hover Actions Overlay */}
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 z-10">
+                      <button 
+                        onClick={() => setReadingBook(book)}
+                        className="p-3 bg-white text-black rounded-full hover:scale-110 transition-transform"
+                        title="Ler Livro"
+                      >
+                        <BookOpen size={20} />
+                      </button>
+                      <button 
+                        onClick={() => setViewingSnippetsBook(book)}
+                        className="p-3 bg-blue-500 text-white rounded-full hover:scale-110 transition-transform"
+                        title="Ver Trechos Salvos"
+                      >
+                        <FileText size={20} />
+                      </button>
+                      <button 
+                        onClick={() => removeBook(book.id)}
+                        className="p-3 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"
+                        title="Excluir Livro"
+                      >
+                        <Trash2 size={20} />
+                      </button>
                   </div>
-                )}
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                  <button 
-                    onClick={() => setReadingBook(book)}
-                    className="p-4 bg-white text-black rounded-full hover:scale-110 transition-transform"
-                  >
-                    <BookOpen size={24} />
-                  </button>
-                  <button 
-                    onClick={() => removeBook(book.id)}
-                    className="p-4 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"
-                  >
-                    <Trash2 size={24} />
-                  </button>
-                </div>
               </div>
-              <div className="p-6">
-                <h3 className="text-sm font-bold text-text-primary line-clamp-1">{book.title}</h3>
-                <p className="text-[10px] text-text-muted uppercase tracking-widest font-bold mt-1">{book.author}</p>
+
+              {/* Info */}
+              <div className="w-full text-center space-y-3 px-2 pb-2">
+                <h3 className="text-sm font-bold text-text-primary line-clamp-1" title={book.title}>{book.title}</h3>
+                
+                {/* Progress Bar */}
+                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div 
+                        className="h-full bg-text-primary rounded-full transition-all duration-500" 
+                        style={{ width: `${book.totalPages ? ((book.currentPage || 1) / book.totalPages) * 100 : 0}%` }}
+                    />
+                </div>
+                
+                {/* Page Counter */}
+                <p className="text-[10px] font-bold text-text-muted">
+                    {book.currentPage || 1} / {book.totalPages || '--'}
+                </p>
               </div>
             </motion.div>
           ))}
@@ -205,7 +232,7 @@ export default function App() {
           <motion.div 
             whileHover={{ y: -8 }}
             onClick={() => fileInputRef.current?.click()}
-            className="bg-bg-card border border-dashed border-white/10 rounded-[48px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
+            className="bg-bg-card border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
           >
             <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
               {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
@@ -608,12 +635,80 @@ export default function App() {
         </AnimatePresence>
 
         <AnimatePresence>
+          {viewingSnippetsBook && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-bg-card border border-border-strong rounded-[32px] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh]"
+              >
+                <div className="p-8 border-b border-border-subtle flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-blue-500/10 text-blue-400 rounded-2xl">
+                        <FileText size={24} />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-text-primary">Trechos Salvos</h2>
+                        <p className="text-sm text-text-muted">{viewingSnippetsBook.title}</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setViewingSnippetsBook(null)}
+                    className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+                <div className="p-8 overflow-y-auto space-y-4">
+                  {!viewingSnippetsBook.snippets || viewingSnippetsBook.snippets.length === 0 ? (
+                    <div className="text-center py-12 text-text-muted">
+                        <FileText size={48} className="mx-auto mb-4 opacity-20" />
+                        <p>Nenhum trecho salvo ainda.</p>
+                        <p className="text-xs mt-2 opacity-60">Selecione textos no leitor de PDF para salvar aqui.</p>
+                    </div>
+                  ) : (
+                    viewingSnippetsBook.snippets.map((snippet, idx) => (
+                        <div key={idx} className="bg-bg-main border border-border-subtle p-6 rounded-2xl relative group">
+                            <p className="text-text-primary text-sm leading-relaxed italic">"{snippet}"</p>
+                            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                <button 
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(snippet);
+                                        alert('Copiado para a área de transferência!');
+                                    }}
+                                    className="p-2 bg-bg-card border border-border-subtle rounded-lg text-text-muted hover:text-text-primary hover:bg-border-subtle transition-colors"
+                                    title="Copiar"
+                                >
+                                    <FileText size={14} />
+                                </button>
+                            </div>
+                        </div>
+                    ))
+                  )}
+                </div>
+                <div className="p-6 border-t border-border-subtle bg-bg-main/50">
+                    <button
+                        onClick={() => setViewingSnippetsBook(null)}
+                        className="w-full py-4 bg-bg-card border border-border-subtle rounded-2xl text-text-primary font-bold text-xs uppercase tracking-widest hover:bg-border-subtle transition-colors"
+                    >
+                        Fechar
+                    </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
           {readingBook && (
             <div className="fixed inset-0 z-[60] bg-bg-main">
               <PdfViewer 
                 url={readingBook.url} 
                 title={readingBook.title}
                 onClose={() => setReadingBook(null)}
+                onSaveSnippet={(text) => addSnippet(readingBook.id, text)}
+                onPageChange={(page, total) => updateBookProgress(readingBook.id, page, total)}
               />
             </div>
           )}

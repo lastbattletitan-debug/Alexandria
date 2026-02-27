@@ -59,9 +59,42 @@ export function useLibrary() {
     setBooks((prev) => prev.filter((b) => b.id !== id));
   };
 
+  const addSnippet = (bookId: string, snippet: string) => {
+    setBooks((prev) => prev.map(book => {
+      if (book.id === bookId) {
+        return {
+          ...book,
+          snippets: [...(book.snippets || []), snippet]
+        };
+      }
+      return book;
+    }));
+  };
+
+  const updateBookProgress = (bookId: string, currentPage: number, totalPages: number) => {
+    setBooks((prev) => {
+      const book = prev.find(b => b.id === bookId);
+      if (book && book.currentPage === currentPage && book.totalPages === totalPages) {
+        return prev;
+      }
+      return prev.map(b => {
+        if (b.id === bookId) {
+          return {
+            ...b,
+            currentPage,
+            totalPages
+          };
+        }
+        return b;
+      });
+    });
+  };
+
   return {
     books,
     addBook,
     removeBook,
+    addSnippet,
+    updateBookProgress,
   };
 }
