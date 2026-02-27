@@ -85,170 +85,171 @@ export function TeacherTopics({
   return (
     <div className="flex flex-col h-full bg-bg-main overflow-hidden">
       {/* Header */}
-      <header className="bg-bg-sidebar border-b border-border-subtle px-8 py-6 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-6">
+      <header className="bg-bg-sidebar border-b border-border-subtle px-4 lg:px-8 py-4 lg:py-6 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-3 lg:gap-6 min-w-0">
           <button
             onClick={onBack}
-            className="p-3 -ml-2 text-text-muted hover:text-text-primary hover:bg-border-subtle rounded-2xl transition-all"
+            className="p-2 lg:p-3 -ml-1 lg:-ml-2 text-text-muted hover:text-text-primary hover:bg-border-subtle rounded-xl lg:rounded-2xl transition-all shrink-0"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft className="w-[18px] h-[18px] lg:w-[20px] lg:h-[20px]" />
           </button>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-text-primary flex items-center justify-center">
-              <Bookmark className="text-bg-main" size={24} />
+          <div className="flex items-center gap-2 lg:gap-4 min-w-0">
+            <div className="w-8 h-8 lg:w-12 lg:h-12 rounded-lg lg:rounded-2xl bg-text-primary flex items-center justify-center shrink-0">
+              <Bookmark className="w-[18px] h-[18px] lg:w-[24px] lg:h-[24px] text-bg-main" />
             </div>
-            <div>
-              <h2 className="font-bold text-text-primary text-xl leading-tight">Meus Tópicos</h2>
-              <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-0.5">Assuntos em Aprendizado</p>
+            <div className="min-w-0">
+              <h2 className="font-bold text-text-primary text-sm lg:text-xl leading-tight truncate">Meus Tópicos</h2>
+              <p className="text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mt-0.5 truncate">Assuntos em Aprendizado</p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="bg-bg-card rounded-full p-1.5 flex items-center border border-border-subtle">
+        <div className="flex items-center gap-2 lg:gap-3">
+          <div className="bg-bg-card rounded-full p-1 lg:p-1.5 flex items-center border border-border-subtle shrink-0">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-full transition-all ${viewMode === 'grid' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
+              className={`p-1.5 lg:p-2 rounded-full transition-all ${viewMode === 'grid' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
               title="Visualização em Grade"
             >
-              <LayoutGrid size={16} />
+              <LayoutGrid className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-full transition-all ${viewMode === 'list' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
+              className={`p-1.5 lg:p-2 rounded-full transition-all ${viewMode === 'list' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
               title="Visualização em Lista"
             >
-              <List size={16} />
+              <List className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
             </button>
           </div>
           <button
             onClick={handleOpenAdd}
-            className="flex items-center gap-2 bg-text-primary text-bg-main px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all active:scale-95"
+            className="flex items-center gap-2 bg-text-primary text-bg-main px-3 lg:px-6 py-2.5 lg:py-3 rounded-xl lg:rounded-2xl text-[8px] lg:text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all active:scale-95 shrink-0"
           >
-            <Plus size={16} />
-            Novo Tópico
+            <Plus className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
+            <span className="hidden sm:inline">Novo Tópico</span>
+            <span className="sm:hidden">Novo</span>
           </button>
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-8 lg:p-12">
+      <div className="flex-1 overflow-y-auto p-4 lg:p-12 pb-safe lg:pb-12">
         <div className="max-w-5xl mx-auto">
           {(!teacher.topics || teacher.topics.length === 0) ? (
-            <div className="flex flex-col items-center justify-center py-24 text-text-muted">
-              <div className="w-24 h-24 rounded-[32px] bg-bg-card border border-border-subtle flex items-center justify-center mb-6">
-                <Bookmark size={40} className="opacity-10" />
+            <div className="flex flex-col items-center justify-center py-12 lg:py-24 text-text-muted">
+              <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-[24px] lg:rounded-[32px] bg-bg-card border border-border-subtle flex items-center justify-center mb-6">
+                <Bookmark className="w-[32px] h-[32px] lg:w-[40px] lg:h-[40px] opacity-10" />
               </div>
-              <h3 className="text-xl font-bold text-text-primary mb-2">Nenhum tópico ainda</h3>
-              <p className="text-center max-w-sm opacity-60 text-sm">
+              <h3 className="text-lg lg:text-xl font-bold text-text-primary mb-2">Nenhum tópico ainda</h3>
+              <p className="text-center max-w-xs lg:max-w-sm opacity-60 text-xs lg:text-sm px-4">
                 Crie tópicos específicos para organizar seu aprendizado com {teacher.name}.
               </p>
               <button
                 onClick={handleOpenAdd}
-                className="mt-8 px-8 py-4 bg-border-strong text-text-primary rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-text-primary hover:text-bg-main transition-all"
+                className="mt-8 px-6 lg:px-8 py-3 lg:py-4 bg-border-strong text-text-primary rounded-xl lg:rounded-2xl text-[8px] lg:text-[10px] font-bold uppercase tracking-widest hover:bg-text-primary hover:text-bg-main transition-all"
               >
                 Começar agora
               </button>
             </div>
           ) : (
-            <div className={`${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2' : 'flex flex-col'} gap-6`}>
+            <div className={`${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2' : 'flex flex-col'} gap-4 lg:gap-6`}>
               {topics.map((topic) => (
                 <motion.div
                   key={topic.id}
                   layoutId={topic.id}
                   onClick={() => onSelectTopic(topic.id)}
-                  className={`group relative rounded-[32px] border transition-all cursor-pointer ${viewMode === 'grid' ? 'p-8 flex flex-col h-full' : 'p-4 flex flex-row items-center justify-between'} ${
+                  className={`group relative rounded-[24px] lg:rounded-[32px] border transition-all cursor-pointer ${viewMode === 'grid' ? 'p-6 lg:p-8 flex flex-col h-full' : 'p-4 flex flex-row items-center justify-between'} ${
                     topic.status === 'completed' 
                       ? 'bg-emerald-500/5 border-emerald-500/20' 
                       : 'bg-bg-card border-border-subtle hover:border-border-strong'
                   }`}
                 >
-                  <div className={`flex ${viewMode === 'list' ? 'items-center flex-1 gap-4' : 'items-start justify-between mb-4 w-full'}`}>
-                    <div className={`p-3 rounded-2xl ${
+                  <div className={`flex ${viewMode === 'list' ? 'items-center flex-1 gap-3 lg:gap-4' : 'items-start justify-between mb-4 w-full'}`}>
+                    <div className={`p-2 lg:p-3 rounded-xl lg:rounded-2xl ${
                       topic.status === 'completed' 
                         ? 'bg-emerald-500/20 text-emerald-400' 
                         : 'bg-border-subtle text-text-muted'
                     }`}>
-                      {topic.status === 'completed' ? <CheckCircle2 size={20} /> : <Clock size={20} />}
+                      {topic.status === 'completed' ? <CheckCircle2 className="w-[18px] h-[18px] lg:w-[20px] lg:h-[20px]" /> : <Clock className="w-[18px] h-[18px] lg:w-[20px] lg:h-[20px]" />}
                     </div>
                     {viewMode === 'list' && (
-                      <div className="flex flex-col flex-1">
-                        <h3 className="text-lg font-bold text-text-primary leading-tight">{topic.name}</h3>
-                        <p className="text-xs text-text-muted line-clamp-1">{topic.description || 'Sem descrição.'}</p>
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <h3 className="text-sm lg:text-lg font-bold text-text-primary leading-tight truncate">{topic.name}</h3>
+                        <p className="text-[10px] lg:text-xs text-text-muted line-clamp-1">{topic.description || 'Sem descrição.'}</p>
                       </div>
                     )}
                     {viewMode === 'grid' && (
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                      <div className="flex items-center gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-all">
                         <button
                           onClick={(e) => toggleStatus(e, topic)}
-                          className={`p-2 rounded-xl border transition-all ${
+                          className={`p-2 rounded-lg lg:rounded-xl border transition-all ${
                             topic.status === 'completed' 
                               ? 'bg-bg-card text-text-muted border-border-subtle hover:text-text-primary' 
                               : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
                           }`}
                           title={topic.status === 'completed' ? 'Marcar como em andamento' : 'Marcar como concluído'}
                         >
-                          <CheckCircle2 size={16} />
+                          <CheckCircle2 className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
                         </button>
                         <button
                           onClick={(e) => handleOpenEdit(e, topic)}
-                          className="p-2 bg-bg-card text-text-muted border border-border-subtle rounded-xl hover:text-text-primary transition-all"
+                          className="p-2 bg-bg-card text-text-muted border border-border-subtle rounded-lg lg:rounded-xl hover:text-text-primary transition-all"
                         >
-                          <Edit3 size={16} />
+                          <Edit3 className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
                         </button>
                         <button
                           onClick={(e) => handleDelete(e, topic.id)}
-                          className="p-2 bg-bg-card text-text-muted border border-border-subtle rounded-xl hover:text-red-400 transition-all"
+                          className="p-2 bg-bg-card text-text-muted border border-border-subtle rounded-lg lg:rounded-xl hover:text-red-400 transition-all"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
                         </button>
                       </div>
                     )}
                   </div>
 
                   {viewMode === 'grid' && (
-                    <h3 className="text-xl font-bold text-text-primary mb-2 leading-tight">{topic.name}</h3>
+                    <h3 className="text-base lg:text-xl font-bold text-text-primary mb-2 leading-tight">{topic.name}</h3>
                   )}
                   {viewMode === 'grid' && (
-                    <p className="text-sm text-text-muted line-clamp-2 mb-6 flex-1">
+                    <p className="text-xs lg:text-sm text-text-muted line-clamp-2 mb-6 flex-1">
                       {topic.description || 'Sem descrição.'}
                     </p>
                   )}
 
-                  <div className={`flex items-center ${viewMode === 'list' ? 'gap-4' : 'justify-between pt-6 border-t border-border-subtle w-full'}`}>
+                  <div className={`flex items-center ${viewMode === 'list' ? 'gap-3 lg:gap-4' : 'justify-between pt-4 lg:pt-6 border-t border-border-subtle w-full'}`}>
                     {viewMode === 'list' && (
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                      <div className="flex items-center gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-all">
                         <button
                           onClick={(e) => toggleStatus(e, topic)}
-                          className={`p-2 rounded-xl border transition-all ${
+                          className={`p-1.5 lg:p-2 rounded-lg lg:rounded-xl border transition-all ${
                             topic.status === 'completed' 
                               ? 'bg-bg-card text-text-muted border-border-subtle hover:text-text-primary' 
                               : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
                           }`}
                           title={topic.status === 'completed' ? 'Marcar como em andamento' : 'Marcar como concluído'}
                         >
-                          <CheckCircle2 size={16} />
+                          <CheckCircle2 className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
                         </button>
                         <button
                           onClick={(e) => handleOpenEdit(e, topic)}
-                          className="p-2 bg-bg-card text-text-muted border border-border-subtle rounded-xl hover:text-text-primary transition-all"
+                          className="p-1.5 lg:p-2 bg-bg-card text-text-muted border border-border-subtle rounded-lg lg:rounded-xl hover:text-text-primary transition-all"
                         >
-                          <Edit3 size={16} />
+                          <Edit3 className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
                         </button>
                         <button
                           onClick={(e) => handleDelete(e, topic.id)}
-                          className="p-2 bg-bg-card text-text-muted border border-border-subtle rounded-xl hover:text-red-400 transition-all"
+                          className="p-1.5 lg:p-2 bg-bg-card text-text-muted border border-border-subtle rounded-lg lg:rounded-xl hover:text-red-400 transition-all"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
                         </button>
                       </div>
                     )}
-                    <div className="flex items-center gap-2 text-[10px] font-bold text-text-muted uppercase tracking-widest">
-                      <Calendar size={12} />
+                    <div className="flex items-center gap-1.5 lg:gap-2 text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest">
+                      <Calendar className="w-[10px] h-[10px] lg:w-[12px] lg:h-[12px]" />
                       {new Date(topic.createdAt).toLocaleDateString()}
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] font-bold text-text-primary uppercase tracking-widest">
-                      <MessageSquare size={12} />
-                      {topic.chatHistory.length} mensagens
+                    <div className="flex items-center gap-1.5 lg:gap-2 text-[8px] lg:text-[10px] font-bold text-text-primary uppercase tracking-widest">
+                      <MessageSquare className="w-[10px] h-[10px] lg:w-[12px] lg:h-[12px]" />
+                      {topic.chatHistory.length} <span className="hidden sm:inline">mensagens</span>
                     </div>
                   </div>
                 </motion.div>
@@ -268,17 +269,17 @@ export function TeacherTopics({
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-bg-card border border-border-strong rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col"
             >
-              <div className="flex items-center justify-between p-8 border-b border-border-subtle">
-                <h2 className="text-xl font-bold text-text-primary">
+              <div className="flex items-center justify-between p-6 lg:p-8 border-b border-border-subtle">
+                <h2 className="text-lg lg:text-xl font-bold text-text-primary">
                   {editingTopic ? 'Editar Tópico' : 'Novo Tópico'}
                 </h2>
                 <button onClick={() => setIsModalOpen(false)} className="text-text-muted hover:text-text-primary">
-                  <X size={20} />
+                  <X className="w-[18px] h-[18px] lg:w-[20px] lg:h-[20px]" />
                 </button>
               </div>
-              <form onSubmit={handleSubmit} className="p-8 flex flex-col gap-6">
+              <form onSubmit={handleSubmit} className="p-6 lg:p-8 flex flex-col gap-4 lg:gap-6">
                 <div>
-                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Nome do Tópico</label>
+                  <label className="block text-[9px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Nome do Tópico</label>
                   <input
                     type="text"
                     required
@@ -286,31 +287,29 @@ export function TeacherTopics({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Ex: Introdução à Termodinâmica"
-                    className="w-full bg-bg-main border border-border-subtle px-4 py-4 rounded-2xl text-text-primary focus:outline-none focus:border-border-strong transition-all placeholder:text-text-muted/50"
-                  />
+                    className="w-full bg-bg-main border border-border-subtle px-4 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all placeholder:text-text-muted/50" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Descrição (Opcional)</label>
+                  <label className="block text-[9px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Descrição (Opcional)</label>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="O que você quer focar neste tópico?"
                     rows={3}
-                    className="w-full bg-bg-main border border-border-subtle px-4 py-4 rounded-2xl text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none placeholder:text-text-muted/50"
-                  />
+                    className="w-full bg-bg-main border border-border-subtle px-4 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none placeholder:text-text-muted/50" />
                 </div>
                 <div className="flex gap-3 mt-2">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="flex-1 px-6 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted bg-border-subtle hover:bg-border-strong transition-colors"
+                    className="flex-1 px-4 lg:px-6 py-3 lg:py-4 rounded-xl lg:rounded-2xl font-bold text-[9px] lg:text-[10px] uppercase tracking-widest text-text-muted bg-border-subtle hover:bg-border-strong transition-colors"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={!name.trim()}
-                    className="flex-1 px-6 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-bg-main bg-text-primary hover:opacity-90 transition-colors disabled:opacity-20"
+                    className="flex-1 px-4 lg:px-6 py-3 lg:py-4 rounded-xl lg:rounded-2xl font-bold text-[9px] lg:text-[10px] uppercase tracking-widest text-bg-main bg-text-primary hover:opacity-90 transition-colors disabled:opacity-20"
                   >
                     Salvar Tópico
                   </button>

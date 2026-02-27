@@ -113,36 +113,37 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
   return (
     <div className="flex flex-col h-full bg-bg-main overflow-hidden">
       {/* Header */}
-      <header className="bg-bg-sidebar border-b border-border-subtle px-8 py-6 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-6">
+      <header className="bg-bg-sidebar border-b border-border-subtle px-4 lg:px-8 py-4 lg:py-6 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-3 lg:gap-6 min-w-0">
           <button
             onClick={onBack}
-            className="p-3 -ml-2 text-text-muted hover:text-text-primary hover:bg-border-subtle rounded-2xl transition-all"
+            className="p-2 lg:p-3 -ml-1 lg:-ml-2 text-text-muted hover:text-text-primary hover:bg-border-subtle rounded-xl lg:rounded-2xl transition-all shrink-0"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft className="w-[18px] h-[18px] lg:w-[20px] lg:h-[20px]" />
           </button>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-text-primary flex items-center justify-center">
-              <Brain className="text-bg-main" size={24} />
+          <div className="flex items-center gap-2 lg:gap-4 min-w-0">
+            <div className="w-8 h-8 lg:w-12 lg:h-12 rounded-lg lg:rounded-2xl bg-text-primary flex items-center justify-center shrink-0">
+              <Brain className="w-[18px] h-[18px] lg:w-[24px] lg:h-[24px] text-bg-main" />
             </div>
-            <div>
-              <h2 className="font-bold text-text-primary text-xl leading-tight">Cérebro de {teacher.name}</h2>
-              <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-0.5">Base de Conhecimento e Personalidade</p>
+            <div className="min-w-0">
+              <h2 className="font-bold text-text-primary text-sm lg:text-xl leading-tight truncate">Cérebro de {teacher.name}</h2>
+              <p className="text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mt-0.5 truncate">Base de Conhecimento</p>
             </div>
           </div>
         </div>
 
         <button
           onClick={handleSaveSettings}
-          className="flex items-center gap-2 bg-text-primary text-bg-main px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all active:scale-95"
+          className="flex items-center gap-2 bg-text-primary text-bg-main px-4 lg:px-6 py-2.5 lg:py-3 rounded-xl lg:rounded-2xl text-[8px] lg:text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all active:scale-95 shrink-0"
         >
-          <Save size={16} />
-          Salvar Cérebro
+          <Save className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
+          <span className="hidden sm:inline">Salvar Cérebro</span>
+          <span className="sm:hidden">Salvar</span>
         </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-8 lg:p-12">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12">
+      <div className="flex-1 overflow-y-auto p-4 lg:p-12 pb-safe lg:pb-12">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
           
           {/* Left Column: Knowledge Base */}
           <div className="space-y-8">
@@ -215,12 +216,12 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
               </div>
             </section>
 
-            <section className="bg-bg-card border border-border-subtle rounded-[32px] p-8">
+            <section className="bg-bg-card border border-border-subtle rounded-[24px] lg:rounded-[32px] p-6 lg:p-8">
               <div className="flex items-center gap-3 mb-4 text-text-primary">
-                <Info size={18} className="text-blue-400" />
-                <h4 className="font-bold text-sm">Como funciona o cérebro?</h4>
+                <Info className="w-[16px] h-[16px] lg:w-[18px] lg:h-[18px] text-blue-400" />
+                <h4 className="font-bold text-xs lg:text-sm">Como funciona o cérebro?</h4>
               </div>
-              <p className="text-xs text-text-muted leading-relaxed">
+              <p className="text-[10px] lg:text-xs text-text-muted leading-relaxed">
                 As fontes de conhecimento são os documentos e links que o professor utiliza para responder às suas perguntas. 
                 Quanto mais fontes você adicionar, mais inteligente e preciso o professor se tornará. 
                 Você pode subir PDFs, imagens, textos e links da web.
@@ -234,61 +235,57 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
               <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
                 <Info size={14} className="text-blue-500" /> Informações Básicas
               </h3>
-              <div>
-                <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-3">Descrição do Professor</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Uma breve descrição sobre quem é este professor e o que ele ensina..."
-                  rows={3}
-                  className="w-full bg-bg-card border border-border-subtle px-6 py-5 rounded-[24px] text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none text-sm placeholder:text-text-muted/30"
-                />
-              </div>
-            </section>
-
-            <section>
-              <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                <MessageSquare size={14} className="text-emerald-500" /> Personalidade e Estilo
-              </h3>
-              
-              <div className="space-y-6">
                 <div>
-                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-3">Definição de Personalidade</label>
+                  <label className="block text-[9px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 lg:mb-3">Descrição do Professor</label>
                   <textarea
-                    value={personality}
-                    onChange={(e) => setPersonality(e.target.value)}
-                    placeholder="Ex: Você é um professor sarcástico mas muito inteligente. Use gírias de tecnologia e seja direto..."
-                    rows={4}
-                    className="w-full bg-bg-card border border-border-subtle px-6 py-5 rounded-[24px] text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none text-sm placeholder:text-text-muted/30"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-3">Referências de Estilo (Links/Vídeos)</label>
-                  <textarea
-                    value={personalitySources}
-                    onChange={(e) => setPersonalitySources(e.target.value)}
-                    placeholder="Cole links de vídeos do YouTube ou textos para o professor imitar o estilo..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Uma breve descrição sobre quem é este professor e o que ele ensina..."
                     rows={3}
-                    className="w-full bg-bg-card border border-border-subtle px-6 py-5 rounded-[24px] text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none text-sm placeholder:text-text-muted/30"
-                  />
+                    className="w-full bg-bg-card border border-border-subtle px-4 lg:px-6 py-4 lg:py-5 rounded-[20px] lg:rounded-[24px] text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none text-xs lg:text-sm placeholder:text-text-muted/30" />
                 </div>
+              </section>
 
-                <div>
-                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-3">Instruções de Sistema (Regras de Ouro)</label>
-                  <textarea
-                    value={systemInstruction}
-                    onChange={(e) => setSystemInstruction(e.target.value)}
-                    placeholder="Regras específicas que o professor NUNCA deve quebrar..."
-                    rows={5}
-                    className="w-full bg-bg-card border border-border-subtle px-6 py-5 rounded-[24px] text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none text-sm placeholder:text-text-muted/30 font-mono"
-                  />
-                  <p className="text-[9px] text-text-muted mt-3 italic">
-                    * Estas instruções definem o comportamento base do modelo de IA.
-                  </p>
+              <section>
+                <h3 className="text-[9px] lg:text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] mb-4 lg:mb-6 flex items-center gap-2">
+                  <MessageSquare className="w-[12px] h-[12px] lg:w-[14px] lg:h-[14px] text-emerald-500" /> Personalidade e Estilo
+                </h3>
+                
+                <div className="space-y-4 lg:space-y-6">
+                  <div>
+                    <label className="block text-[9px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 lg:mb-3">Definição de Personalidade</label>
+                    <textarea
+                      value={personality}
+                      onChange={(e) => setPersonality(e.target.value)}
+                      placeholder="Ex: Você é um professor sarcástico mas muito inteligente. Use gírias de tecnologia e seja direto..."
+                      rows={4}
+                      className="w-full bg-bg-card border border-border-subtle px-4 lg:px-6 py-4 lg:py-5 rounded-[20px] lg:rounded-[24px] text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none text-xs lg:text-sm placeholder:text-text-muted/30" />
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 lg:mb-3">Referências de Estilo (Links/Vídeos)</label>
+                    <textarea
+                      value={personalitySources}
+                      onChange={(e) => setPersonalitySources(e.target.value)}
+                      placeholder="Cole links de vídeos do YouTube ou textos para o professor imitar o estilo..."
+                      rows={3}
+                      className="w-full bg-bg-card border border-border-subtle px-4 lg:px-6 py-4 lg:py-5 rounded-[20px] lg:rounded-[24px] text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none text-xs lg:text-sm placeholder:text-text-muted/30" />
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 lg:mb-3">Instruções de Sistema (Regras de Ouro)</label>
+                    <textarea
+                      value={systemInstruction}
+                      onChange={(e) => setSystemInstruction(e.target.value)}
+                      placeholder="Regras específicas que o professor NUNCA deve quebrar..."
+                      rows={5}
+                      className="w-full bg-bg-card border border-border-subtle px-4 lg:px-6 py-4 lg:py-5 rounded-[20px] lg:rounded-[24px] text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none text-xs lg:text-sm placeholder:text-text-muted/30 font-mono" />
+                    <p className="text-[8px] lg:text-[9px] text-text-muted mt-2 lg:mt-3 italic">
+                      * Estas instruções definem o comportamento base do modelo de IA.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </section>
+              </section>
           </div>
         </div>
       </div>
@@ -303,43 +300,41 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-bg-card border border-border-strong rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col"
             >
-              <div className="p-8 border-b border-border-subtle">
-                <h2 className="text-xl font-bold text-text-primary">Adicionar Link ao Cérebro</h2>
+              <div className="p-6 lg:p-8 border-b border-border-subtle">
+                <h2 className="text-lg lg:text-xl font-bold text-text-primary">Adicionar Link ao Cérebro</h2>
               </div>
-              <form onSubmit={handleAddLink} className="p-8 flex flex-col gap-6">
+              <form onSubmit={handleAddLink} className="p-6 lg:p-8 flex flex-col gap-4 lg:gap-6">
                 <div>
-                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">URL do Link</label>
+                  <label className="block text-[9px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">URL do Link</label>
                   <input
                     type="url"
                     required
                     value={linkUrl}
                     onChange={(e) => setLinkUrl(e.target.value)}
                     placeholder="https://..."
-                    className="w-full bg-bg-main border border-border-subtle px-4 py-4 rounded-2xl text-text-primary focus:outline-none focus:border-border-strong transition-all placeholder:text-text-muted/50"
-                  />
+                    className="w-full bg-bg-main border border-border-subtle px-4 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all placeholder:text-text-muted/50" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Nome da Fonte</label>
+                  <label className="block text-[9px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Nome da Fonte</label>
                   <input
                     type="text"
                     value={linkName}
                     onChange={(e) => setLinkName(e.target.value)}
                     placeholder="Ex: Documentação Oficial"
-                    className="w-full bg-bg-main border border-border-subtle px-4 py-4 rounded-2xl text-text-primary focus:outline-none focus:border-border-strong transition-all placeholder:text-text-muted/50"
-                  />
+                    className="w-full bg-bg-main border border-border-subtle px-4 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all placeholder:text-text-muted/50" />
                 </div>
                 <div className="flex gap-3 mt-2">
                   <button
                     type="button"
                     onClick={() => setIsLinkModalOpen(false)}
-                    className="flex-1 px-6 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted bg-border-subtle hover:bg-border-strong transition-colors"
+                    className="flex-1 px-4 lg:px-6 py-3 lg:py-4 rounded-xl lg:rounded-2xl font-bold text-[9px] lg:text-[10px] uppercase tracking-widest text-text-muted bg-border-subtle hover:bg-border-strong transition-colors"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={!linkUrl}
-                    className="flex-1 px-6 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-bg-main bg-text-primary hover:opacity-90 transition-colors disabled:opacity-20"
+                    className="flex-1 px-4 lg:px-6 py-3 lg:py-4 rounded-xl lg:rounded-2xl font-bold text-[9px] lg:text-[10px] uppercase tracking-widest text-bg-main bg-text-primary hover:opacity-90 transition-colors disabled:opacity-20"
                   >
                     Adicionar
                   </button>

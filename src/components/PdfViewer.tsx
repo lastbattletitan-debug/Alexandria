@@ -71,12 +71,24 @@ export function PdfViewer({
 
   // Details state
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isBottomControlsVisible, setIsBottomControlsVisible] = useState(false);
 
   // Selection state
   const [selection, setSelection] = useState<string | null>(null);
   const [selectionPosition, setSelectionPosition] = useState<{top: number, left: number} | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isBottomControlsVisible, setIsBottomControlsVisible] = useState(false);
+
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.clientWidth - 32); // 32px padding
+      }
+    };
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, []);
 
   useEffect(() => {
     setPageNumber(1);
@@ -264,65 +276,64 @@ export function PdfViewer({
         </div>
       )}
 
-      {/* Header Bar - Hidden by default, shown on hover */}
+      {/* Header Bar - Always visible on mobile, hidden by default on desktop */}
       <div 
-        className="absolute top-0 left-0 right-0 z-40 hover:opacity-100 transition-opacity duration-300"
-        style={{ opacity: isToolbarVisible || isSearchOpen || isCategoryOpen || isDetailsOpen ? 1 : 0 }}
+        className="absolute top-0 left-0 right-0 z-40 lg:opacity-0 lg:hover:opacity-100 transition-opacity duration-300"
+        style={{ opacity: (typeof window !== 'undefined' && window.innerWidth < 1024) || isToolbarVisible || isSearchOpen || isCategoryOpen || isDetailsOpen ? 1 : undefined }}
         onMouseEnter={() => setIsToolbarVisible(true)}
         onMouseLeave={() => setIsToolbarVisible(false)}
       >
         {/* Trigger area to ensure hover works easily */}
         <div className="h-4 w-full absolute -top-4 left-0" />
         
-        <div className="flex items-center justify-between px-6 py-4 bg-bg-sidebar/95 backdrop-blur-md border-b border-border-subtle shadow-lg gap-4">
+        <div className="flex items-center justify-between px-4 lg:px-6 py-3 lg:py-4 bg-bg-sidebar/95 backdrop-blur-md border-b border-border-subtle shadow-lg gap-2 lg:gap-4">
           {/* Left: Back & Title */}
-          <div className="flex items-center gap-4 min-w-0">
+          <div className="flex items-center gap-2 lg:gap-4 min-w-0">
             {onClose && (
               <button
                 onClick={onClose}
                 className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0"
               >
-                <ArrowLeft size={20} />
+                <ArrowLeft className="w-[18px] h-[18px] lg:w-[20px] lg:h-[20px]" />
               </button>
             )}
-            <h2 className="font-bold text-text-primary text-sm truncate max-w-[200px] lg:max-w-md" title={title}>
+            <h2 className="font-bold text-text-primary text-xs lg:text-sm truncate max-w-[120px] lg:max-w-md" title={title}>
               {title || 'Documento PDF'}
             </h2>
           </div>
 
           {/* Center: Page Navigation (Only visible in Single Page Mode) */}
           {viewMode === 'single' && (
-            <div className="flex items-center gap-2 justify-center">
+            <div className="flex items-center gap-1 lg:gap-2 justify-center">
               <button
                 onClick={() => changePage(-1)}
                 disabled={pageNumber <= 1}
-                className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors"
+                className="p-1.5 lg:p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors"
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft className="w-[16px] h-[16px] lg:w-[18px] lg:h-[18px]" />
               </button>
               
-              <form onSubmit={handlePageSubmit} className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5">
+              <form onSubmit={handlePageSubmit} className="flex items-center gap-1 lg:gap-2 bg-bg-card border border-border-subtle rounded-lg px-2 lg:px-3 py-1 lg:py-1.5">
                 <input
                   type="text"
                   value={inputPage}
                   onChange={(e) => setInputPage(e.target.value)}
-                  className="w-8 bg-transparent text-center text-xs font-bold text-text-primary focus:outline-none"
-                />
-                <span className="text-text-muted text-xs">/ {numPages || '--'}</span>
+                  className="w-6 lg:w-8 bg-transparent text-center text-[10px] lg:text-xs font-bold text-text-primary focus:outline-none" />
+                <span className="text-text-muted text-[10px] lg:text-xs">/ {numPages || '--'}</span>
               </form>
 
               <button
                 onClick={() => changePage(1)}
                 disabled={!numPages || pageNumber >= numPages}
-                className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors"
+                className="p-1.5 lg:p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors"
               >
-                <ChevronRight size={18} />
+                <ChevronRight className="w-[16px] h-[16px] lg:w-[18px] lg:h-[18px]" />
               </button>
             </div>
           )}
 
           {/* Right: Controls */}
-          <div className="flex items-center gap-4 justify-end flex-1">
+          <div className="flex items-center gap-2 lg:gap-4 justify-end flex-1">
             {/* Notes Button */}
             {onOpenNotes && (
               <button
@@ -330,7 +341,7 @@ export function PdfViewer({
                 className="p-2 bg-bg-card border border-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors"
                 title="Notas"
               >
-                <FileText size={16} />
+                <FileText className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
               </button>
             )}
 
@@ -342,15 +353,15 @@ export function PdfViewer({
                   className={`p-2 rounded-xl transition-colors ${isDetailsOpen ? 'bg-text-primary text-bg-main' : 'bg-bg-card border border-border-subtle text-text-muted hover:text-text-primary'}`}
                   title="Detalhes do Livro"
                 >
-                  <Info size={16} />
+                  <Info className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
                 </button>
                 
                 {isDetailsOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-64 bg-bg-card border border-border-strong rounded-xl shadow-2xl p-4 z-30 flex flex-col gap-6">
+                  <div className="absolute top-full right-0 mt-2 w-56 lg:w-64 bg-bg-card border border-border-strong rounded-xl shadow-2xl p-3 lg:p-4 z-30 flex flex-col gap-4 lg:gap-6">
                     {/* Status */}
                     <div>
-                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-3">Status</p>
-                      <div className="flex flex-col gap-2">
+                      <p className="text-[9px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 lg:mb-3">Status</p>
+                      <div className="flex flex-col gap-1.5 lg:gap-2">
                         {['Próximo', 'Lendo agora', 'Pausado', 'Concluído', 'Descartado'].map((s) => (
                           <button
                             key={s}
@@ -362,7 +373,7 @@ export function PdfViewer({
                               }
                               setIsDetailsOpen(false);
                             }}
-                            className={`px-3 py-2 rounded-lg text-xs font-medium text-left transition-colors ${status === s ? 'bg-white text-black' : 'bg-bg-main text-text-primary hover:bg-border-subtle'}`}
+                            className={`px-3 py-1.5 lg:py-2 rounded-lg text-[10px] lg:text-xs font-medium text-left transition-colors ${status === s ? 'bg-white text-black' : 'bg-bg-main text-text-primary hover:bg-border-subtle'}`}
                           >
                             {s}
                           </button>
@@ -373,17 +384,16 @@ export function PdfViewer({
                     {/* Rating */}
                     {onUpdateRating && (
                       <div>
-                        <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-3">Avaliação</p>
-                        <div className="flex gap-1 justify-center bg-bg-main p-2 rounded-xl border border-border-subtle">
+                        <p className="text-[9px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 lg:mb-3">Avaliação</p>
+                        <div className="flex gap-1 justify-center bg-bg-main p-1.5 lg:p-2 rounded-xl border border-border-subtle">
                           {[1, 2, 3, 4, 5].map((star) => (
                             <button
                               key={star}
                               onClick={() => onUpdateRating(star)}
                               className="p-1 hover:scale-110 transition-transform"
                             >
-                              <Star 
-                                size={20} 
-                                className={star <= (rating || 0) ? "fill-yellow-400 text-yellow-400" : "text-border-strong"} 
+                              <Star   
+                                className={`w-[16px] h-[16px] lg:w-[20px] lg:h-[20px] ${star <= (rating || 0) ? "fill-yellow-400 text-yellow-400" : "text-border-strong"}`} 
                               />
                             </button>
                           ))}
@@ -403,20 +413,19 @@ export function PdfViewer({
                   className={`p-2 rounded-xl transition-colors ${isCategoryOpen ? 'bg-text-primary text-bg-main' : 'bg-bg-card border border-border-subtle text-text-muted hover:text-text-primary'}`}
                   title="Categoria"
                 >
-                  <Tag size={16} />
+                  <Tag className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
                 </button>
                 
                 {isCategoryOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-72 bg-bg-card border border-border-strong rounded-xl shadow-2xl p-4 z-30 flex flex-col gap-4">
+                  <div className="absolute top-full right-0 mt-2 w-64 lg:w-72 bg-bg-card border border-border-strong rounded-xl shadow-2xl p-3 lg:p-4 z-30 flex flex-col gap-3 lg:gap-4">
                     <div>
                       <div className="flex gap-2">
                         <input 
                           type="text" 
                           value={newCategory}
                           onChange={(e) => setNewCategory(e.target.value)}
-                          placeholder="Criar nova categoria..."
-                          className="flex-1 bg-bg-main border border-border-subtle rounded-lg px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:border-border-strong"
-                        />
+                          placeholder="Nova categoria..."
+                          className="flex-1 bg-bg-main border border-border-subtle rounded-lg px-2 py-1.5 text-[10px] lg:text-xs text-text-primary focus:outline-none focus:border-border-strong" />
                         <button 
                           onClick={() => {
                             if (newCategory.trim()) {
@@ -428,7 +437,7 @@ export function PdfViewer({
                           }}
                           className="p-1.5 bg-text-primary text-bg-main rounded-lg hover:opacity-90"
                         >
-                          <Plus size={14} />
+                          <Plus className="w-[12px] h-[12px] lg:w-[14px] lg:h-[14px]" />
                         </button>
                       </div>
                     </div>
@@ -436,17 +445,17 @@ export function PdfViewer({
                     {/* Current Categories (Tags) */}
                     {currentCategories.length > 0 && (
                       <div>
-                        <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Categorias do Livro</p>
-                        <div className="flex flex-wrap gap-2">
+                        <p className="text-[9px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Categorias</p>
+                        <div className="flex flex-wrap gap-1.5 lg:gap-2">
                           {currentCategories.map(cat => (
-                            <div key={cat} className="flex items-center gap-1 bg-text-primary text-bg-main px-2 py-1 rounded-md text-xs">
+                            <div key={cat} className="flex items-center gap-1 bg-text-primary text-bg-main px-2 py-0.5 lg:py-1 rounded-md text-[10px] lg:text-xs">
                               <span>{cat}</span>
                               {onRemoveCategory && (
                                 <button 
                                   onClick={() => onRemoveCategory(cat)}
                                   className="hover:text-red-300"
                                 >
-                                  <X size={12} />
+                                  <X className="w-[10px] h-[10px] lg:w-[12px] lg:h-[12px]" />
                                 </button>
                               )}
                             </div>
@@ -457,17 +466,17 @@ export function PdfViewer({
                     
                     {categories.length > 0 && (
                       <div>
-                        <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Categorias existentes</p>
-                        <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+                        <p className="text-[9px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Existentes</p>
+                        <div className="flex flex-col gap-1 lg:gap-2 max-h-40 lg:max-h-48 overflow-y-auto">
                           {categories.filter(c => !currentCategories.includes(c)).map(cat => (
-                            <div key={cat} className="group flex items-center justify-between p-2 rounded-lg hover:bg-bg-main transition-colors">
+                            <div key={cat} className="group flex items-center justify-between p-1.5 lg:p-2 rounded-lg hover:bg-bg-main transition-colors">
                               {editingCategory?.oldName === cat ? (
                                 <div className="flex items-center gap-2 flex-1">
                                   <input
                                     type="text"
                                     value={editingCategory.newName}
                                     onChange={(e) => setEditingCategory({ ...editingCategory, newName: e.target.value })}
-                                    className="flex-1 bg-bg-card border border-border-subtle rounded px-2 py-1 text-xs text-text-primary"
+                                    className="flex-1 bg-bg-card border border-border-subtle rounded px-2 py-1 text-[10px] lg:text-xs text-text-primary"
                                     autoFocus
                                   />
                                   <button
@@ -479,13 +488,13 @@ export function PdfViewer({
                                     }}
                                     className="p-1 text-green-400 hover:bg-white/5 rounded"
                                   >
-                                    <Check size={12} />
+                                    <Check className="w-[10px] h-[10px] lg:w-[12px] lg:h-[12px]" />
                                   </button>
                                   <button
                                     onClick={() => setEditingCategory(null)}
                                     className="p-1 text-red-400 hover:bg-white/5 rounded"
                                   >
-                                    <X size={12} />
+                                    <X className="w-[10px] h-[10px] lg:w-[12px] lg:h-[12px]" />
                                   </button>
                                 </div>
                               ) : (
@@ -495,7 +504,7 @@ export function PdfViewer({
                                       onAddCategory(cat);
                                       setIsCategoryOpen(false);
                                     }}
-                                    className="text-xs text-text-primary hover:text-white flex-1 text-left"
+                                    className="text-[10px] lg:text-xs text-text-primary hover:text-white flex-1 text-left"
                                   >
                                     {cat}
                                   </button>
@@ -506,7 +515,7 @@ export function PdfViewer({
                                         className="p-1 text-text-muted hover:text-text-primary hover:bg-white/5 rounded"
                                         title="Renomear"
                                       >
-                                        <Edit2 size={12} />
+                                        <Edit2 className="w-[10px] h-[10px] lg:w-[12px] lg:h-[12px]" />
                                       </button>
                                     )}
                                     {onDeleteCategory && (
@@ -519,7 +528,7 @@ export function PdfViewer({
                                         className="p-1 text-text-muted hover:text-red-400 hover:bg-white/5 rounded"
                                         title="Excluir"
                                       >
-                                        <Trash2 size={12} />
+                                        <Trash2 className="w-[10px] h-[10px] lg:w-[12px] lg:h-[12px]" />
                                       </button>
                                     )}
                                   </div>
@@ -542,11 +551,11 @@ export function PdfViewer({
                 className={`p-2 rounded-xl transition-colors ${isSearchOpen ? 'bg-text-primary text-bg-main' : 'bg-bg-card border border-border-subtle text-text-muted hover:text-text-primary'}`}
                 title="Pesquisar"
               >
-                <Search size={16} />
+                <Search className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
               </button>
               
               {isSearchOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-72 bg-bg-card border border-border-strong rounded-xl shadow-2xl p-3 z-30 flex flex-col gap-2">
+                  <div className="absolute top-full right-0 mt-2 w-64 lg:w-72 bg-bg-card border border-border-strong rounded-xl shadow-2xl p-2 lg:p-3 z-30 flex flex-col gap-2">
                       <div className="flex items-center gap-2">
                           <input 
                               type="text" 
@@ -554,7 +563,7 @@ export function PdfViewer({
                               onChange={(e) => setSearchQuery(e.target.value)}
                               onKeyDown={(e) => e.key === 'Enter' && performSearch()}
                               placeholder="Buscar..."
-                              className="flex-1 bg-bg-main border border-border-subtle rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:border-border-strong"
+                              className="flex-1 bg-bg-main border border-border-subtle rounded-lg px-2 lg:px-3 py-1 lg:py-1.5 text-[10px] lg:text-sm text-text-primary focus:outline-none focus:border-border-strong"
                               autoFocus
                           />
                           <button 
@@ -562,50 +571,47 @@ export function PdfViewer({
                               disabled={isSearching}
                               className="p-1.5 bg-text-primary text-bg-main rounded-lg hover:opacity-90 disabled:opacity-50"
                           >
-                              {isSearching ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                              {isSearching ? <Loader2 className="w-[12px] h-[12px] lg:w-[14px] lg:h-[14px] animate-spin" /> : <Search className="w-[12px] h-[12px] lg:w-[14px] lg:h-[14px]" />}
                           </button>
                       </div>
                       {searchResults.length > 0 && (
-                          <div className="flex items-center justify-between text-xs text-text-muted px-1">
+                          <div className="flex items-center justify-between text-[10px] lg:text-xs text-text-muted px-1">
                               <span>{currentResultIndex + 1} de {searchResults.length}</span>
                               <div className="flex gap-1">
-                                  <button onClick={prevResult} className="p-1 hover:bg-border-subtle rounded"><ChevronLeft size={14}/></button>
-                                  <button onClick={nextResult} className="p-1 hover:bg-border-subtle rounded"><ChevronRight size={14}/></button>
+                                  <button onClick={prevResult} className="p-1 hover:bg-border-subtle rounded"><ChevronLeft className="w-[12px] h-[12px] lg:w-[14px] lg:h-[14px]" /></button>
+                                  <button onClick={nextResult} className="p-1 hover:bg-border-subtle rounded"><ChevronRight className="w-[12px] h-[12px] lg:w-[14px] lg:h-[14px]" /></button>
                               </div>
                           </div>
-                      )}
-                      {searchQuery && !isSearching && searchResults.length === 0 && (
-                          <div className="text-xs text-text-muted text-center py-1">Nenhum resultado</div>
                       )}
                   </div>
               )}
             </div>
 
-          {/* View Mode Toggle */}
-          <div className="flex items-center bg-bg-card border border-border-subtle rounded-xl p-1">
+          {/* View Mode Toggle - Hidden on very small screens */}
+          <div className="hidden sm:flex items-center bg-bg-card border border-border-subtle rounded-xl p-1">
             <button
               onClick={() => setViewMode('single')}
               className={`p-2 rounded-lg transition-colors ${viewMode === 'single' ? 'bg-border-subtle text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
               title="Página Única"
             >
-              <FileText size={16} />
+              <FileText className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
             </button>
             <button
               onClick={() => setViewMode('scroll')}
               className={`p-2 rounded-lg transition-colors ${viewMode === 'scroll' ? 'bg-border-subtle text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
               title="Rolagem Contínua"
             >
-              <Rows size={16} />
+              <Rows className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
             </button>
           </div>
 
-          {/* Zoom Controls */}
-          <div className="flex items-center gap-3 bg-bg-card border border-border-subtle rounded-xl p-2 px-3">
+          {/* Zoom Controls - Hidden on very small screens */}
+          <div className="hidden md:flex items-center gap-3 bg-bg-card border border-border-subtle rounded-xl p-2 px-3">
             <button
               onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
               className="text-text-muted hover:text-text-primary transition-colors"
             >
-              <Minus size={16} />
+              <Minus className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
             </button>
             
             <input 
@@ -615,16 +621,15 @@ export function PdfViewer({
               step="0.1" 
               value={scale} 
               onChange={(e) => setScale(parseFloat(e.target.value))}
-              className="w-24 h-1 bg-border-subtle rounded-lg appearance-none cursor-pointer accent-text-primary"
-            />
+              className="w-16 lg:w-24 h-1 bg-border-subtle rounded-lg appearance-none cursor-pointer accent-text-primary" />
             
             <button
               onClick={() => setScale(s => Math.min(3, s + 0.1))}
               className="text-text-muted hover:text-text-primary transition-colors"
             >
-              <Plus size={16} />
+              <Plus className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
             </button>
-            <span className="text-xs font-bold text-text-primary w-10 text-right select-none">
+            <span className="text-[10px] lg:text-xs font-bold text-text-primary w-8 lg:w-10 text-right select-none">
               {Math.round(scale * 100)}%
             </span>
           </div>
@@ -632,8 +637,8 @@ export function PdfViewer({
       </div>
     </div>
 
-    {/* PDF Content */}
-      <div className="flex-1 overflow-auto flex justify-center p-8 bg-bg-main/50 relative">
+      {/* PDF Content */}
+      <div className="flex-1 overflow-auto flex justify-center p-4 lg:p-8 bg-bg-main/50 relative">
         {loading && !error && (
             <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
                 <div className="bg-bg-card/80 backdrop-blur-sm p-4 rounded-xl flex items-center gap-3 border border-border-subtle shadow-lg">
@@ -666,20 +671,20 @@ export function PdfViewer({
                         <Page 
                             pageNumber={pageNumber} 
                             scale={scale} 
+                            width={containerWidth}
                             renderTextLayer={true}
                             renderAnnotationLayer={true}
-                            className="max-w-full"
-                        />
+                            className="max-w-full" />
                     ) : (
                         Array.from(new Array(numPages), (el, index) => (
                             <Page 
                                 key={`page_${index + 1}`}
                                 pageNumber={index + 1} 
                                 scale={scale} 
+                                width={containerWidth}
                                 renderTextLayer={true}
                                 renderAnnotationLayer={true}
-                                className="max-w-full mb-2 border-b border-gray-200 last:border-0"
-                            />
+                                className="max-w-full mb-2 border-b border-gray-200 last:border-0" />
                         ))
                     )}
                 </Document>
@@ -689,10 +694,10 @@ export function PdfViewer({
         {/* Floating Bottom Page Controls */}
         {viewMode === 'single' && !loading && !error && (
           <div 
-            className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40 transition-all duration-300"
+            className="absolute bottom-6 lg:bottom-12 left-1/2 -translate-x-1/2 z-40 transition-all duration-300 lg:opacity-0 lg:hover:opacity-100"
             style={{ 
-              opacity: isBottomControlsVisible ? 1 : 0,
-              transform: `translateX(-50%) translateY(${isBottomControlsVisible ? '0' : '10px'})`
+              opacity: (typeof window !== 'undefined' && window.innerWidth < 1024) || isBottomControlsVisible ? 1 : undefined,
+              transform: `translateX(-50%) translateY(${((typeof window !== 'undefined' && window.innerWidth < 1024) || isBottomControlsVisible) ? '0' : '10px'})`
             }}
             onMouseEnter={() => setIsBottomControlsVisible(true)}
             onMouseLeave={() => setIsBottomControlsVisible(false)}

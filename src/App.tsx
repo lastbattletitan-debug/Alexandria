@@ -624,6 +624,7 @@ export default function App() {
       />
 
       {/* Sidebar */}
+      {/* Sidebar - Desktop */}
       <motion.aside 
         initial={false}
         animate={{ 
@@ -632,7 +633,7 @@ export default function App() {
           x: isSidebarHovered ? 0 : -20
         }}
         onMouseLeave={() => setIsSidebarHovered(false)}
-        className="fixed left-0 top-0 bottom-0 bg-bg-sidebar border-r border-border-subtle flex flex-col p-8 z-40 shadow-2xl overflow-hidden"
+        className="fixed left-0 top-0 bottom-0 bg-bg-sidebar border-r border-border-subtle hidden lg:flex flex-col p-8 z-40 shadow-2xl overflow-hidden"
       >
         <div className="flex items-center gap-3 mb-12 min-w-[224px]">
           <div className="w-10 h-10 bg-text-primary rounded-xl flex items-center justify-center transition-colors">
@@ -769,54 +770,56 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex-1 flex flex-col p-12 overflow-y-auto"
+              className="flex-1 flex flex-col p-4 lg:p-12 overflow-y-auto pb-24 lg:pb-12"
             >
-              <header className="flex items-center justify-between gap-8 mb-12 sticky top-0 bg-bg-main/80 backdrop-blur-md z-10 py-4">
-                <div className="flex-1 max-w-2xl relative group">
+              <header className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 lg:gap-8 mb-8 lg:mb-12 sticky top-0 bg-bg-main/80 backdrop-blur-md z-10 py-4">
+                <div className="flex-1 max-w-2xl relative group order-2 lg:order-1">
                   <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-text-primary transition-colors" size={20} />
                   <input 
                     type="text" 
                     placeholder="Procure por professores, matérias ou aulas..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-bg-card border border-border-subtle rounded-2xl py-4 pl-16 pr-6 text-sm focus:outline-none focus:border-border-strong focus:bg-border-subtle transition-all text-text-primary placeholder:text-text-muted"
+                    className="w-full bg-bg-card border border-border-subtle rounded-2xl py-3 lg:py-4 pl-14 lg:pl-16 pr-6 text-sm focus:outline-none focus:border-border-strong focus:bg-border-subtle transition-all text-text-primary placeholder:text-text-muted"
                   />
                 </div>
 
-                <div className="flex items-center gap-6">
-                  <button 
-                    onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
-                    className="p-2 text-text-muted hover:text-text-primary transition-all duration-300 active:scale-90"
-                  >
-                    {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
-                  </button>
-                  
-                  <div 
-                    className="flex items-center gap-4 pl-6 border-l border-border-strong cursor-pointer"
-                    onClick={() => setIsProfileModalOpen(true)}
-                  >
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-text-primary">{userName}</p>
-                      <p className="text-[10px] text-text-muted uppercase tracking-widest font-bold">{userPlan === 'Pro' ? 'Membro Pro' : 'Membro Standard'}</p>
-                    </div>
-                    {userImage ? (
-                      <img src={userImage} alt="User" className="w-10 h-10 rounded-xl object-cover border border-border-strong" referrerPolicy="no-referrer" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-xl border border-border-strong bg-bg-card flex items-center justify-center text-text-muted">
-                        <User size={20} />
+                <div className="flex items-center justify-between lg:justify-end gap-4 lg:gap-6 order-1 lg:order-2">
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
+                      className="p-2 text-text-muted hover:text-text-primary transition-all duration-300 active:scale-90"
+                    >
+                      {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
+                    </button>
+                    
+                    <div 
+                      className="flex items-center gap-4 lg:pl-6 lg:border-l border-border-strong cursor-pointer"
+                      onClick={() => setIsProfileModalOpen(true)}
+                    >
+                      <div className="text-right hidden sm:block">
+                        <p className="text-sm font-bold text-text-primary">{userName}</p>
+                        <p className="text-[10px] text-text-muted uppercase tracking-widest font-bold">{userPlan === 'Pro' ? 'Membro Pro' : 'Membro Standard'}</p>
                       </div>
-                    )}
+                      {userImage ? (
+                        <img src={userImage} alt="User" className="w-10 h-10 rounded-xl object-cover border border-border-strong" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-xl border border-border-strong bg-bg-card flex items-center justify-center text-text-muted">
+                          <User size={20} />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </header>
 
-              <div className="flex flex-row items-center justify-between gap-6 mb-8">
-                <div className="bg-bg-card rounded-full p-1.5 flex items-center border border-border-subtle">
+              <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 lg:gap-6 mb-8">
+                <div className="bg-bg-card rounded-full p-1 flex lg:p-1.5 items-center border border-border-subtle overflow-x-auto no-scrollbar">
                   {(['professores', 'mentores', 'biblioteca'] as Tab[]).map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
-                      className={`relative px-8 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300 ${
+                      className={`relative px-4 lg:px-8 py-2 lg:py-2.5 rounded-full text-[9px] lg:text-[10px] font-bold uppercase tracking-[0.15em] lg:tracking-[0.2em] transition-all duration-300 whitespace-nowrap ${
                         activeTab === tab 
                           ? 'bg-border-strong text-text-primary' 
                           : 'text-text-muted hover:text-text-primary'
@@ -827,7 +830,7 @@ export default function App() {
                   ))}
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 lg:gap-3">
                   <button
                     onClick={() => {
                       if (activeTab === 'biblioteca') {
@@ -836,18 +839,20 @@ export default function App() {
                         openAddModal(activeTab === 'mentores' ? 'Mentor' : 'Professor');
                       }
                     }}
-                    className="flex items-center justify-center gap-3 bg-text-primary text-bg-main px-8 py-4 rounded-full text-[10px] font-bold uppercase tracking-[0.15em] hover:opacity-90 transition-all active:scale-95 whitespace-nowrap"
+                    className="flex-1 lg:flex-none flex items-center justify-center gap-2 lg:gap-3 bg-text-primary text-bg-main px-4 lg:px-8 py-3 lg:py-4 rounded-full text-[9px] lg:text-[10px] font-bold uppercase tracking-[0.1em] lg:tracking-[0.15em] hover:opacity-90 transition-all active:scale-95 whitespace-nowrap"
                   >
-                    <Plus size={16} />
-                    {activeTab === 'mentores' ? 'Adicionar novo mentor' : activeTab === 'biblioteca' ? 'Adicionar novo livro' : 'Adicionar novo professor'}
+                    <Plus size={14} />
+                    <span className="truncate">
+                      {activeTab === 'mentores' ? 'Novo mentor' : activeTab === 'biblioteca' ? 'Novo livro' : 'Novo professor'}
+                    </span>
                   </button>
                   
                   <div className="relative">
                     <button 
                       onClick={() => setIsMenuOpen(!isMenuOpen)}
-                      className="p-4 bg-bg-card border border-border-subtle text-text-muted rounded-full hover:bg-border-strong transition-colors"
+                      className="p-3 lg:p-4 bg-bg-card border border-border-subtle text-text-muted rounded-full hover:bg-border-strong transition-colors"
                     >
-                      <MoreVertical size={20} />
+                      <MoreVertical size={18} />
                     </button>
                     
                     <AnimatePresence>
@@ -979,30 +984,30 @@ export default function App() {
 
         <AnimatePresence>
           {teacherToDelete && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 className="bg-bg-card border border-border-strong rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col"
               >
-                <div className="p-8 border-b border-border-subtle">
-                  <h2 className="text-xl font-bold text-text-primary">Excluir Professor</h2>
+                <div className="p-6 lg:p-8 border-b border-border-subtle">
+                  <h2 className="text-lg lg:text-xl font-bold text-text-primary">Excluir Professor</h2>
                 </div>
-                <div className="p-8">
-                  <p className="text-text-muted mb-8 leading-relaxed">
+                <div className="p-6 lg:p-8">
+                  <p className="text-sm lg:text-base text-text-muted mb-8 leading-relaxed">
                     Tem certeza que deseja excluir o professor <strong className="text-text-primary">{teacherToDelete.name}</strong>? Esta ação não pode ser desfeita.
                   </p>
                   <div className="flex gap-3">
                     <button
                       onClick={() => setTeacherToDelete(null)}
-                      className="flex-1 px-6 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted bg-border-subtle hover:bg-border-strong transition-colors"
+                      className="flex-1 px-4 lg:px-6 py-3 lg:py-4 rounded-2xl font-bold text-[9px] lg:text-[10px] uppercase tracking-widest text-text-muted bg-border-subtle hover:bg-border-strong transition-colors"
                     >
                       Cancelar
                     </button>
                     <button
                       onClick={confirmDeleteTeacher}
-                      className="flex-1 px-6 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white bg-red-500 hover:bg-red-600 transition-colors"
+                      className="flex-1 px-4 lg:px-6 py-3 lg:py-4 rounded-2xl font-bold text-[9px] lg:text-[10px] uppercase tracking-widest text-white bg-red-500 hover:bg-red-600 transition-colors"
                     >
                       Excluir
                     </button>
@@ -1013,6 +1018,40 @@ export default function App() {
           )}
         </AnimatePresence>
 
+        {/* Mobile Bottom Navigation */}
+        {!selectedTeacher && !brainTeacherId && !topicsTeacherId && (
+          <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-bg-card/95 backdrop-blur-xl border-t border-border-strong z-[40] flex items-center justify-around px-4 pb-safe">
+            <button 
+              onClick={() => setActiveTab('professores')}
+              className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'professores' ? 'text-text-primary' : 'text-text-muted'}`}
+            >
+              <GraduationCap size={20} className={activeTab === 'professores' ? 'scale-110' : ''} />
+              <span className="text-[9px] font-bold uppercase tracking-widest">Profs</span>
+            </button>
+            <button 
+              onClick={() => setActiveTab('mentores')}
+              className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'mentores' ? 'text-text-primary' : 'text-text-muted'}`}
+            >
+              <Users size={20} className={activeTab === 'mentores' ? 'scale-110' : ''} />
+              <span className="text-[9px] font-bold uppercase tracking-widest">Mentores</span>
+            </button>
+            <button 
+              onClick={() => setActiveTab('biblioteca')}
+              className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'biblioteca' ? 'text-text-primary' : 'text-text-muted'}`}
+            >
+              <LibraryIcon size={20} className={activeTab === 'biblioteca' ? 'scale-110' : ''} />
+              <span className="text-[9px] font-bold uppercase tracking-widest">Livros</span>
+            </button>
+            <button 
+              onClick={() => setIsProfileModalOpen(true)}
+              className="flex flex-col items-center gap-1 text-text-muted"
+            >
+              <User size={20} />
+              <span className="text-[9px] font-bold uppercase tracking-widest">Perfil</span>
+            </button>
+          </nav>
+        )}
+
         <AnimatePresence>
           {viewingSnippetsBook && (
             <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -1020,45 +1059,45 @@ export default function App() {
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="bg-bg-card border border-border-strong rounded-[32px] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh]"
+                className="bg-bg-card border border-border-strong rounded-[24px] lg:rounded-[32px] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] lg:max-h-[80vh]"
               >
-                <div className="p-8 border-b border-border-subtle flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-blue-500/10 text-blue-400 rounded-2xl">
-                        <FileText size={24} />
+                <div className="p-4 lg:p-8 border-b border-border-subtle flex items-center justify-between">
+                  <div className="flex items-center gap-3 lg:gap-4">
+                    <div className="p-2 lg:p-3 bg-blue-500/10 text-blue-400 rounded-xl lg:rounded-2xl">
+                        <FileText size={20} className="lg:w-6 lg:h-6" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-text-primary">Notas</h2>
-                        <p className="text-sm text-text-muted">{viewingSnippetsBook.title}</p>
+                        <h2 className="text-lg lg:text-xl font-bold text-text-primary">Notas</h2>
+                        <p className="text-xs lg:text-sm text-text-muted line-clamp-1">{viewingSnippetsBook.title}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 lg:gap-2">
                     <button 
                       onClick={() => handleExportTxt(viewingSnippetsBook)}
-                      className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors"
+                      className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors flex items-center"
                       title="Exportar TXT"
                     >
-                      <span className="text-xs font-bold mr-1">TXT</span>
+                      <span className="text-[10px] lg:text-xs font-bold mr-1 hidden sm:inline">TXT</span>
                       <Download size={16} />
                     </button>
                     <button 
                       onClick={() => handleExportPdf(viewingSnippetsBook)}
-                      className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors"
+                      className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors flex items-center"
                       title="Exportar PDF"
                     >
-                      <span className="text-xs font-bold mr-1">PDF</span>
+                      <span className="text-[10px] lg:text-xs font-bold mr-1 hidden sm:inline">PDF</span>
                       <Download size={16} />
                     </button>
-                    <div className="w-px h-6 bg-border-subtle mx-2" />
+                    <div className="w-px h-6 bg-border-subtle mx-1 lg:mx-2" />
                     <button 
                       onClick={() => setViewingSnippetsBookId(null)}
                       className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors"
                     >
-                      <X size={24} />
+                      <X size={20} className="lg:w-6 lg:h-6" />
                     </button>
                   </div>
                 </div>
-                <div className="p-8 overflow-y-auto space-y-4">
+                <div className="p-4 lg:p-8 overflow-y-auto space-y-4">
                   {!viewingSnippetsBook.snippets || viewingSnippetsBook.snippets.length === 0 ? (
                     <div className="text-center py-12 text-text-muted">
                         <FileText size={48} className="mx-auto mb-4 opacity-20" />
@@ -1067,18 +1106,18 @@ export default function App() {
                     </div>
                   ) : (
                     viewingSnippetsBook.snippets.map((snippet, idx) => (
-                        <div key={idx} className="bg-bg-main border border-border-subtle p-6 rounded-2xl relative group">
+                        <div key={idx} className="bg-bg-main border border-border-subtle p-4 lg:p-6 rounded-xl lg:rounded-2xl relative group">
                             {editingSnippet?.index === idx ? (
                               <div className="space-y-3">
                                 <textarea
                                   value={editingSnippet.text}
                                   onChange={(e) => setEditingSnippet({ ...editingSnippet, text: e.target.value })}
-                                  className="w-full bg-bg-card border border-border-strong rounded-xl p-3 text-sm text-text-primary focus:outline-none focus:border-text-primary min-h-[100px]"
+                                  className="w-full bg-bg-card border border-border-strong rounded-xl p-3 text-xs lg:text-sm text-text-primary focus:outline-none focus:border-text-primary min-h-[100px]"
                                 />
                                 <div className="flex justify-end gap-2">
                                   <button
                                     onClick={() => setEditingSnippet(null)}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-text-muted hover:bg-border-subtle"
+                                    className="px-3 py-1.5 rounded-lg text-[10px] lg:text-xs font-bold text-text-muted hover:bg-border-subtle"
                                   >
                                     Cancelar
                                   </button>
@@ -1087,7 +1126,7 @@ export default function App() {
                                       updateSnippet(viewingSnippetsBook.id, idx, editingSnippet.text);
                                       setEditingSnippet(null);
                                     }}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-text-primary text-bg-main hover:opacity-90"
+                                    className="px-3 py-1.5 rounded-lg text-[10px] lg:text-xs font-bold bg-text-primary text-bg-main hover:opacity-90"
                                   >
                                     Salvar
                                   </button>
@@ -1095,14 +1134,14 @@ export default function App() {
                               </div>
                             ) : (
                               <>
-                                <p className="text-text-primary text-sm leading-relaxed italic">"{snippet}"</p>
-                                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-bg-main pl-2">
+                                <p className="text-text-primary text-xs lg:text-sm leading-relaxed italic">"{snippet}"</p>
+                                <div className="absolute top-2 right-2 lg:top-4 lg:right-4 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity flex gap-1 lg:gap-2 bg-bg-main pl-2">
                                     <button 
                                         onClick={() => setEditingSnippet({ index: idx, text: snippet })}
-                                        className="p-2 bg-bg-card border border-border-subtle rounded-lg text-text-muted hover:text-text-primary hover:bg-border-subtle transition-colors"
+                                        className="p-1.5 lg:p-2 bg-bg-card border border-border-subtle rounded-lg text-text-muted hover:text-text-primary hover:bg-border-subtle transition-colors"
                                         title="Editar"
                                     >
-                                        <Edit2 size={14} />
+                                        <Edit2 size={12} className="lg:w-3.5 lg:h-3.5" />
                                     </button>
                                     <button 
                                         onClick={() => {
@@ -1110,20 +1149,20 @@ export default function App() {
                                               deleteSnippet(viewingSnippetsBook.id, idx);
                                             }
                                         }}
-                                        className="p-2 bg-bg-card border border-border-subtle rounded-lg text-red-400 hover:text-red-500 hover:bg-border-subtle transition-colors"
+                                        className="p-1.5 lg:p-2 bg-bg-card border border-border-subtle rounded-lg text-red-400 hover:text-red-500 hover:bg-border-subtle transition-colors"
                                         title="Excluir"
                                     >
-                                        <Trash2 size={14} />
+                                        <Trash2 size={12} className="lg:w-3.5 lg:h-3.5" />
                                     </button>
                                     <button 
                                         onClick={() => {
                                             navigator.clipboard.writeText(snippet);
                                             alert('Copiado para a área de transferência!');
                                         }}
-                                        className="p-2 bg-bg-card border border-border-subtle rounded-lg text-text-muted hover:text-text-primary hover:bg-border-subtle transition-colors"
+                                        className="p-1.5 lg:p-2 bg-bg-card border border-border-subtle rounded-lg text-text-muted hover:text-text-primary hover:bg-border-subtle transition-colors"
                                         title="Copiar"
                                     >
-                                        <FileText size={14} />
+                                        <FileText size={12} className="lg:w-3.5 lg:h-3.5" />
                                     </button>
                                 </div>
                               </>
@@ -1132,10 +1171,10 @@ export default function App() {
                     ))
                   )}
                 </div>
-                <div className="p-6 border-t border-border-subtle bg-bg-main/50">
+                <div className="p-4 lg:p-6 border-t border-border-subtle bg-bg-main/50">
                     <button
                         onClick={() => setViewingSnippetsBookId(null)}
-                        className="w-full py-4 bg-bg-card border border-border-subtle rounded-2xl text-text-primary font-bold text-xs uppercase tracking-widest hover:bg-border-subtle transition-colors"
+                        className="w-full py-3 lg:py-4 bg-bg-card border border-border-subtle rounded-xl lg:rounded-2xl text-text-primary font-bold text-[10px] lg:text-xs uppercase tracking-widest hover:bg-border-subtle transition-colors"
                     >
                         Fechar
                     </button>

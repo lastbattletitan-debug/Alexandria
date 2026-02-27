@@ -100,40 +100,40 @@ export function TeacherModal({ isOpen, onClose, onSave, initialData, defaultRole
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-bg-card border border-border-strong rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]"
+            className="bg-bg-card border border-border-strong rounded-[24px] lg:rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh] lg:max-h-[90vh]"
           >
-            <div className="flex items-center justify-between p-8 border-b border-border-subtle shrink-0">
-              <h2 className="text-2xl font-bold text-text-primary">
+            <div className="flex items-center justify-between p-4 lg:p-6 xl:p-8 border-b border-border-subtle shrink-0">
+              <h2 className="text-lg lg:text-xl xl:text-2xl font-bold text-text-primary">
                 {initialData ? (role === 'Mentor' ? 'Editar Mentor' : 'Editar Professor') : (role === 'Mentor' ? 'Novo Mentor' : 'Novo Professor')}
               </h2>
               <button
                 onClick={onClose}
-                className="p-2 text-text-muted hover:text-text-primary hover:bg-border-subtle rounded-full transition-colors"
+                className="p-1.5 lg:p-2 text-text-muted hover:text-text-primary hover:bg-border-subtle rounded-full transition-colors"
               >
-                <X size={20} />
+                <X className="w-[16px] h-[16px] lg:w-[20px] lg:h-[20px]" />
               </button>
             </div>
             
-            <div className="overflow-y-auto p-8">
-              <form id="teacher-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <div className="overflow-y-auto p-4 lg:p-6 xl:p-8">
+              <form id="teacher-form" onSubmit={handleSubmit} className="flex flex-col gap-3 lg:gap-4 xl:gap-6">
                 
                 {/* Image Upload */}
-                <div className="flex flex-col items-center gap-2 mb-2">
+                <div className="flex flex-col items-center gap-2 mb-1 lg:mb-2">
                   <div 
-                    className="w-24 h-24 rounded-3xl bg-border-subtle border-2 border-dashed border-border-strong flex items-center justify-center overflow-hidden relative group cursor-pointer"
+                    className="w-16 h-16 lg:w-20 lg:h-20 xl:w-24 xl:h-24 rounded-2xl lg:rounded-3xl bg-border-subtle border-2 border-dashed border-border-strong flex items-center justify-center overflow-hidden relative group cursor-pointer"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     {imageUrl ? (
                       <>
                         <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Upload className="text-white" size={24} />
+                          <Upload className="w-[20px] h-[20px] lg:w-[24px] lg:h-[24px] text-white" />
                         </div>
                       </>
                     ) : (
                       <div className="flex flex-col items-center text-text-muted">
-                        <ImageIcon size={24} />
-                        <span className="text-[10px] uppercase font-bold mt-1 tracking-widest">Upload</span>
+                        <ImageIcon className="w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />
+                        <span className="text-[8px] lg:text-[10px] uppercase font-bold mt-1 tracking-widest">Upload</span>
                       </div>
                     )}
                   </div>
@@ -142,12 +142,11 @@ export function TeacherModal({ isOpen, onClose, onSave, initialData, defaultRole
                     ref={fileInputRef} 
                     onChange={handleImageUpload} 
                     accept="image/*" 
-                    className="hidden" 
-                  />
+                    className="hidden" />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">
+                  <label className="block text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">
                     {role === 'Mentor' ? 'Nome do Mentor' : 'Nome do Professor'}
                   </label>
                   <input
@@ -156,17 +155,16 @@ export function TeacherModal({ isOpen, onClose, onSave, initialData, defaultRole
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder={role === 'Mentor' ? 'Ex: Mentor Andrew' : 'Ex: Prof. Arnold'}
-                    className="w-full bg-bg-main border border-border-subtle px-4 py-4 rounded-2xl text-text-primary focus:outline-none focus:border-border-strong transition-all placeholder:text-text-muted/50"
-                  />
+                    className="w-full bg-bg-main border border-border-subtle px-4 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all placeholder:text-text-muted/50" />
                 </div>
                 
                 <div>
-                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Tipo</label>
+                  <label className="block text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Tipo</label>
                   <select
                     required
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
-                    className="w-full bg-bg-main border border-border-subtle px-4 py-4 rounded-2xl text-text-primary focus:outline-none focus:border-border-strong transition-all"
+                    className="w-full bg-bg-main border border-border-subtle px-4 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all"
                   >
                     <option value="">Selecione o tipo</option>
                     <option value="Professor">Professor</option>
@@ -175,79 +173,73 @@ export function TeacherModal({ isOpen, onClose, onSave, initialData, defaultRole
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Especialidade / Matéria</label>
+                  <label className="block text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Especialidade / Matéria</label>
                   <input
                     type="text"
                     required
                     value={specialty}
                     onChange={(e) => setSpecialty(e.target.value)}
                     placeholder="Ex: Fitness, Matemática, História..."
-                    className="w-full bg-bg-main border border-border-subtle px-4 py-4 rounded-2xl text-text-primary focus:outline-none focus:border-border-strong transition-all placeholder:text-text-muted/50"
-                  />
+                    className="w-full bg-bg-main border border-border-subtle px-4 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all placeholder:text-text-muted/50" />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Categoria</label>
+                  <label className="block text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Categoria</label>
                   <input
                     type="text"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     placeholder="Ex: Exatas, Saúde, Humanas..."
-                    className="w-full bg-bg-main border border-border-subtle px-4 py-4 rounded-2xl text-text-primary focus:outline-none focus:border-border-strong transition-all placeholder:text-text-muted/50"
-                  />
+                    className="w-full bg-bg-main border border-border-subtle px-4 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all placeholder:text-text-muted/50" />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Descrição Curta</label>
+                  <label className="block text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Descrição Curta</label>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Uma breve descrição sobre o professor..."
                     rows={2}
-                    className="w-full bg-bg-main border border-border-subtle px-4 py-4 rounded-2xl text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none placeholder:text-text-muted/50"
-                  />
+                    className="w-full bg-bg-main border border-border-subtle px-4 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none placeholder:text-text-muted/50" />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Personalidade (Estilo, Humor, Jeito)</label>
+                  <label className="block text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Personalidade (Estilo, Humor, Jeito)</label>
                   <input
                     type="text"
                     value={personality}
                     onChange={(e) => setPersonality(e.target.value)}
                     placeholder="Ex: Engraçado, sarcástico, muito paciente..."
-                    className="w-full bg-bg-main border border-border-subtle px-4 py-4 rounded-2xl text-text-primary focus:outline-none focus:border-border-strong transition-all placeholder:text-text-muted/50"
-                  />
+                    className="w-full bg-bg-main border border-border-subtle px-4 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all placeholder:text-text-muted/50" />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Referências de Personalidade (Links de Vídeos/Textos)</label>
+                  <label className="block text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Referências de Personalidade (Links de Vídeos/Textos)</label>
                   <textarea
                     value={personalitySources}
                     onChange={(e) => setPersonalitySources(e.target.value)}
                     placeholder="Cole links de vídeos ou textos para o professor adaptar a personalidade..."
                     rows={2}
-                    className="w-full bg-bg-main border border-border-subtle px-4 py-4 rounded-2xl text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none placeholder:text-text-muted/50"
-                  />
+                    className="w-full bg-bg-main border border-border-subtle px-4 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none placeholder:text-text-muted/50" />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Instruções Customizadas (Opcional)</label>
+                  <label className="block text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Instruções Customizadas (Opcional)</label>
                   <textarea
                     value={systemInstruction}
                     onChange={(e) => setSystemInstruction(e.target.value)}
                     placeholder="Substitui todas as instruções automáticas se preenchido..."
                     rows={3}
-                    className="w-full bg-bg-main border border-border-subtle px-4 py-4 rounded-2xl text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none placeholder:text-text-muted/50"
-                  />
+                    className="w-full bg-bg-main border border-border-subtle px-4 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none placeholder:text-text-muted/50" />
                 </div>
               </form>
             </div>
 
-            <div className="p-8 border-t border-border-subtle shrink-0">
+            <div className="p-4 lg:p-6 xl:p-8 border-t border-border-subtle shrink-0">
               <button
                 type="submit"
                 form="teacher-form"
-                className="w-full bg-text-primary text-bg-main font-bold text-[10px] uppercase tracking-widest py-4 px-4 rounded-2xl hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                className="w-full bg-text-primary text-bg-main font-bold text-[9px] lg:text-[10px] uppercase tracking-widest py-3 lg:py-4 px-4 rounded-xl lg:rounded-2xl hover:opacity-90 transition-all flex items-center justify-center gap-2"
               >
                 {initialData ? 'Salvar Alterações' : (role === 'Mentor' ? 'Adicionar Mentor' : 'Adicionar Professor')}
               </button>
