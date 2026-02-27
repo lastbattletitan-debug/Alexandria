@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { ChevronLeft, ChevronRight, Loader2, ArrowLeft, Minus, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, ArrowLeft, Minus, Plus, Rows, FileText } from 'lucide-react';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -20,6 +20,7 @@ export function PdfViewer({ url, title, onClose }: PdfViewerProps) {
   const [inputPage, setInputPage] = useState('1');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'single' | 'scroll'>('single');
 
   useEffect(() => {
     setPageNumber(1);
@@ -64,13 +65,13 @@ export function PdfViewer({ url, title, onClose }: PdfViewerProps) {
   return (
     <div className="flex flex-col h-full bg-bg-main">
       {/* Header Bar */}
-      <div className="flex items-center justify-between px-6 py-4 bg-bg-sidebar border-b border-border-subtle shrink-0 z-10 shadow-sm">
+      <div className="flex items-center justify-between px-6 py-4 bg-bg-sidebar border-b border-border-subtle shrink-0 z-10 shadow-sm gap-4">
         {/* Left: Back & Title */}
-        <div className="flex items-center gap-4 flex-1">
+        <div className="flex items-center gap-4 min-w-0">
           {onClose && (
             <button
               onClick={onClose}
-              className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors"
+              className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0"
             >
               <ArrowLeft size={20} />
             </button>
@@ -80,53 +81,85 @@ export function PdfViewer({ url, title, onClose }: PdfViewerProps) {
           </h2>
         </div>
 
-        {/* Center: Page Navigation */}
-        <div className="flex items-center gap-2 flex-1 justify-center">
-          <button
-            onClick={() => changePage(-1)}
-            disabled={pageNumber <= 1}
-            className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          
-          <form onSubmit={handlePageSubmit} className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5">
-            <input
-              type="text"
-              value={inputPage}
-              onChange={(e) => setInputPage(e.target.value)}
-              className="w-8 bg-transparent text-center text-xs font-bold text-text-primary focus:outline-none"
-            />
-            <span className="text-text-muted text-xs">/ {numPages || '--'}</span>
-          </form>
+        {/* Center: Page Navigation (Only visible in Single Page Mode) */}
+        {viewMode === 'single' && (
+          <div className="flex items-center gap-2 justify-center">
+            <button
+              onClick={() => changePage(-1)}
+              disabled={pageNumber <= 1}
+              className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            
+            <form onSubmit={handlePageSubmit} className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5">
+              <input
+                type="text"
+                value={inputPage}
+                onChange={(e) => setInputPage(e.target.value)}
+                className="w-8 bg-transparent text-center text-xs font-bold text-text-primary focus:outline-none"
+              />
+              <span className="text-text-muted text-xs">/ {numPages || '--'}</span>
+            </form>
 
-          <button
-            onClick={() => changePage(1)}
-            disabled={!numPages || pageNumber >= numPages}
-            className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors"
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
+            <button
+              onClick={() => changePage(1)}
+              disabled={!numPages || pageNumber >= numPages}
+              className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        )}
 
-        {/* Right: Zoom Controls */}
-        <div className="flex items-center gap-2 flex-1 justify-end">
+        {/* Right: Controls */}
+        <div className="flex items-center gap-4 justify-end flex-1">
+          {/* View Mode Toggle */}
           <div className="flex items-center bg-bg-card border border-border-subtle rounded-xl p-1">
             <button
+              onClick={() => setViewMode('single')}
+              className={`p-2 rounded-lg transition-colors ${viewMode === 'single' ? 'bg-border-subtle text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
+              title="Página Única"
+            >
+              <FileText size={16} />
+            </button>
+            <button
+              onClick={() => setViewMode('scroll')}
+              className={`p-2 rounded-lg transition-colors ${viewMode === 'scroll' ? 'bg-border-subtle text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
+              title="Rolagem Contínua"
+            >
+              <Rows size={16} />
+            </button>
+          </div>
+
+          {/* Zoom Controls */}
+          <div className="flex items-center gap-3 bg-bg-card border border-border-subtle rounded-xl p-2 px-3">
+            <button
               onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
-              className="p-2 hover:bg-border-subtle rounded-lg text-text-muted hover:text-text-primary transition-colors"
+              className="text-text-muted hover:text-text-primary transition-colors"
             >
               <Minus size={16} />
             </button>
-            <span className="text-xs font-bold text-text-primary w-12 text-center select-none">
-              {Math.round(scale * 100)}%
-            </span>
+            
+            <input 
+              type="range" 
+              min="0.5" 
+              max="3" 
+              step="0.1" 
+              value={scale} 
+              onChange={(e) => setScale(parseFloat(e.target.value))}
+              className="w-24 h-1 bg-border-subtle rounded-lg appearance-none cursor-pointer accent-text-primary"
+            />
+            
             <button
               onClick={() => setScale(s => Math.min(3, s + 0.1))}
-              className="p-2 hover:bg-border-subtle rounded-lg text-text-muted hover:text-text-primary transition-colors"
+              className="text-text-muted hover:text-text-primary transition-colors"
             >
               <Plus size={16} />
             </button>
+            <span className="text-xs font-bold text-text-primary w-10 text-right select-none">
+              {Math.round(scale * 100)}%
+            </span>
           </div>
         </div>
       </div>
@@ -134,8 +167,8 @@ export function PdfViewer({ url, title, onClose }: PdfViewerProps) {
       {/* PDF Content */}
       <div className="flex-1 overflow-auto flex justify-center p-8 bg-bg-main/50 relative">
         {loading && !error && (
-            <div className="absolute inset-0 flex items-center justify-center z-20">
-                <div className="bg-bg-card/80 backdrop-blur-sm p-4 rounded-xl flex items-center gap-3 border border-border-subtle">
+            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                <div className="bg-bg-card/80 backdrop-blur-sm p-4 rounded-xl flex items-center gap-3 border border-border-subtle shadow-lg">
                     <Loader2 className="animate-spin text-text-primary" />
                     <span className="text-sm font-medium text-text-primary">Carregando documento...</span>
                 </div>
@@ -153,7 +186,7 @@ export function PdfViewer({ url, title, onClose }: PdfViewerProps) {
                 </button>
             </div>
         ) : (
-            <div className="shadow-2xl border border-border-subtle bg-white">
+            <div className={`shadow-2xl border border-border-subtle bg-white transition-all duration-200 ${viewMode === 'scroll' ? 'mb-8' : ''}`}>
                 <Document
                     file={url}
                     onLoadSuccess={onDocumentLoadSuccess}
@@ -161,13 +194,26 @@ export function PdfViewer({ url, title, onClose }: PdfViewerProps) {
                     loading={null}
                     className="flex flex-col items-center"
                 >
-                    <Page 
-                        pageNumber={pageNumber} 
-                        scale={scale} 
-                        renderTextLayer={false}
-                        renderAnnotationLayer={false}
-                        className="max-w-full"
-                    />
+                    {viewMode === 'single' ? (
+                        <Page 
+                            pageNumber={pageNumber} 
+                            scale={scale} 
+                            renderTextLayer={true}
+                            renderAnnotationLayer={true}
+                            className="max-w-full"
+                        />
+                    ) : (
+                        Array.from(new Array(numPages), (el, index) => (
+                            <Page 
+                                key={`page_${index + 1}`}
+                                pageNumber={index + 1} 
+                                scale={scale} 
+                                renderTextLayer={true}
+                                renderAnnotationLayer={true}
+                                className="max-w-full mb-2 border-b border-gray-200 last:border-0"
+                            />
+                        ))
+                    )}
                 </Document>
             </div>
         )}
