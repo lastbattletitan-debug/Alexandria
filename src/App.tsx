@@ -1,7 +1,23 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library as LibraryIcon, Search, Settings, GraduationCap, Sun, Moon, Brain, User, BookOpen, Loader2, X, Trash2, FileText, Tag, Download, Edit2, Check } from 'lucide-react';
+import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library as LibraryIcon, Search, Settings, GraduationCap, Sun, Moon, Brain, User, BookOpen, Loader2, X, Trash2, FileText, Tag, Download, Edit2, Check, Star, Rows, Move } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { motion, AnimatePresence } from 'motion/react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
 import { useTeachers } from './hooks/useTeachers';
 import { useLibrary } from './hooks/useLibrary';
 import { generatePdfThumbnail } from './utils/pdfUtils';
@@ -15,8 +31,9 @@ import { Teacher, Topic, LibraryBook } from './types';
 import { TeacherTopics } from './components/TeacherTopics';
 import { ProfileModal } from './components/ProfileModal';
 import { PdfViewer } from './components/PdfViewer';
+import { SortableBookCard } from './components/SortableBookCard';
 
-type ViewMode = 'grid' | 'list' | 'categories';
+type ViewMode = 'grid' | 'list' | 'categories' | 'status';
 type Tab = 'professores' | 'mentores' | 'biblioteca';
 
 export default function App() {
@@ -41,12 +58,28 @@ export default function App() {
   const [brainTeacherId, setBrainTeacherId] = useState<string | null>(null);
   const [topicsTeacherId, setTopicsTeacherId] = useState<string | null>(null);
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('alexandria-view-mode') as ViewMode) || 'grid');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('professores');
   const [teacherToDelete, setTeacherToDelete] = useState<Teacher | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   
+  // Library sorting and filtering
+  const [librarySort, setLibrarySort] = useState<'recent' | 'rating' | 'progress' | 'manual'>(() => (localStorage.getItem('alexandria-library-sort') as any) || 'recent');
+  const [libraryFilter, setLibraryFilter] = useState<LibraryBook['status'] | 'Todos'>(() => (localStorage.getItem('alexandria-library-filter') as any) || 'Todos');
+
+  useEffect(() => {
+    localStorage.setItem('alexandria-view-mode', viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    localStorage.setItem('alexandria-library-sort', librarySort);
+  }, [librarySort]);
+
+  useEffect(() => {
+    localStorage.setItem('alexandria-library-filter', libraryFilter);
+  }, [libraryFilter]);
+
   const [zoomLevels, setZoomLevels] = useState<{ [key in Tab]: number }>(() => {
     const saved = localStorage.getItem('alexandria-zoom-levels');
     if (saved) {
@@ -75,6 +108,18 @@ export default function App() {
   const [userImage, setUserImage] = useState('');
   const [userPlan, setUserPlan] = useState('Desconhecido');
 
+  // DND Sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required to start dragging, prevents accidental drags on clicks
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   // Library states
   const { 
     books, 
@@ -91,7 +136,8 @@ export default function App() {
     updateBookRating,
     createGlobalCategory,
     renameCategory,
-    deleteCategory
+    deleteCategory,
+    reorderBooks
   } = useLibrary();
   const [isUploading, setIsUploading] = useState(false);
   const [readingBookId, setReadingBookId] = useState<string | null>(null);
@@ -130,6 +176,41 @@ export default function App() {
   const topicsTeacher = teachers.find((t) => t.id === topicsTeacherId);
   const selectedTopic = topicsTeacher?.topics?.find(t => t.id === selectedTopicId);
 
+  const processedBooks = useMemo(() => {
+    let result = books.filter(b => 
+      b.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.author.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    // Filter by status
+    if (libraryFilter !== 'Todos') {
+      result = result.filter(b => b.status === libraryFilter);
+    }
+
+    // Sort
+    if (librarySort === 'manual') {
+      // Manual sort uses the order in the 'books' array
+      return result;
+    }
+
+    result.sort((a, b) => {
+      if (librarySort === 'recent') {
+        return new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime();
+      }
+      if (librarySort === 'rating') {
+        return (b.rating || 0) - (a.rating || 0);
+      }
+      if (librarySort === 'progress') {
+        const progressA = a.totalPages ? (a.currentPage || 1) / a.totalPages : 0;
+        const progressB = b.totalPages ? (b.currentPage || 1) / b.totalPages : 0;
+        return progressB - progressA;
+      }
+      return 0;
+    });
+
+    return result;
+  }, [books, searchQuery, librarySort, libraryFilter]);
+
   const handleAddOrEdit = (teacherData: Omit<Teacher, 'id' | 'files' | 'chatHistory' | 'topics'>) => {
     if (editingTeacher) {
       updateTeacher(editingTeacher.id, teacherData);
@@ -138,6 +219,19 @@ export default function App() {
     }
     setIsModalOpen(false);
     setEditingTeacher(null);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = books.findIndex((b) => b.id === active.id);
+      const newIndex = books.findIndex((b) => b.id === over.id);
+
+      const newBooks = arrayMove(books, oldIndex, newIndex);
+      reorderBooks(newBooks);
+      setLibrarySort('manual');
+    }
   };
 
   const openAddModal = (role: 'Professor' | 'Mentor') => {
@@ -214,34 +308,36 @@ export default function App() {
     };
 
     if (activeTab === 'biblioteca') {
-      if (viewMode === 'categories') {
-        const allCategories = Array.from(new Set(books.flatMap(b => b.categories || [])));
-        const booksWithNoCategory = books.filter(b => !b.categories || b.categories.length === 0);
+      if (viewMode === 'status') {
+        const statuses: LibraryBook['status'][] = ['Lendo agora', 'Concluído', 'Pausado', 'Próximo', 'Descartado'];
+        const booksWithNoStatus = processedBooks.filter(b => !b.status);
         
         return (
           <div className="space-y-12 pb-24">
-            {allCategories.map(category => {
-              const categoryBooks = books.filter(b => b.categories?.includes(category));
+            {statuses.map(status => {
+              const statusBooks = processedBooks.filter(b => b.status === status);
+              if (statusBooks.length === 0) return null;
               return (
-                <div key={category} className="space-y-6">
+                <div key={status} className="space-y-6">
                   <h2 className="text-xl font-bold text-text-primary flex items-center gap-3">
-                    <Tag size={24} className="text-text-muted" />
-                    {category}
+                    <Check size={24} className="text-text-muted" />
+                    {status}
                     <span className="text-sm font-normal text-text-muted bg-bg-card px-2 py-1 rounded-lg border border-border-subtle">
-                      {categoryBooks.length}
+                      {statusBooks.length}
                     </span>
                   </h2>
                   <div 
                     className="grid gap-6 origin-top-left transition-all duration-300"
                     style={gridStyle}
                   >
-                    {categoryBooks.map(book => (
+                    {statusBooks.map(book => (
                       <BookCard 
                         key={book.id} 
                         book={book} 
                         onRead={(b) => setReadingBookId(b.id)} 
                         onViewNotes={(b) => setViewingSnippetsBookId(b.id)} 
                         onDelete={removeBook} 
+                        viewMode={viewMode}
                         zoom={currentZoom}
                       />
                     ))}
@@ -250,26 +346,27 @@ export default function App() {
               );
             })}
             
-            {booksWithNoCategory.length > 0 && (
+            {booksWithNoStatus.length > 0 && (
               <div className="space-y-6">
                 <h2 className="text-xl font-bold text-text-primary flex items-center gap-3">
-                  <Tag size={24} className="text-text-muted" />
-                  Sem Categoria
+                  <Check size={24} className="text-text-muted" />
+                  Sem Status
                   <span className="text-sm font-normal text-text-muted bg-bg-card px-2 py-1 rounded-lg border border-border-subtle">
-                    {booksWithNoCategory.length}
+                    {booksWithNoStatus.length}
                   </span>
                 </h2>
                 <div 
                   className="grid gap-6 origin-top-left transition-all duration-300"
                   style={gridStyle}
                 >
-                  {booksWithNoCategory.map(book => (
+                  {booksWithNoStatus.map(book => (
                     <BookCard 
                       key={book.id} 
                       book={book} 
                       onRead={(b) => setReadingBookId(b.id)} 
                       onViewNotes={(b) => setViewingSnippetsBookId(b.id)} 
                       onDelete={removeBook} 
+                      viewMode={viewMode}
                       zoom={currentZoom}
                     />
                   ))}
@@ -314,46 +411,164 @@ export default function App() {
       }
 
       return (
-        <div 
-          className="grid gap-6 origin-top-left transition-all duration-300"
-          style={gridStyle}
+        <DndContext 
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
         >
-          {books.map(book => (
-            <BookCard 
-              key={book.id} 
-              book={book} 
-              onRead={(b) => setReadingBookId(b.id)} 
-              onViewNotes={(b) => setViewingSnippetsBookId(b.id)} 
-              onDelete={removeBook} 
-              zoom={currentZoom}
-            />
-          ))}
-
-          <motion.div 
-            whileHover={{ y: -8 }}
-            onClick={() => fileInputRef.current?.click()}
-            className="bg-bg-card border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/5]"
-          >
-            <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-              {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
+          {viewMode === 'categories' ? (
+            <div className="space-y-12 pb-24">
+              {Array.from(new Set(processedBooks.flatMap(b => b.categories || []))).map(category => {
+                const categoryBooks = processedBooks.filter(b => b.categories?.includes(category));
+                return (
+                  <div key={category} className="space-y-6">
+                    <h2 className="text-xl font-bold text-text-primary flex items-center gap-3">
+                      <Tag size={24} className="text-text-muted" />
+                      {category}
+                      <span className="text-sm font-normal text-text-muted bg-bg-card px-2 py-1 rounded-lg border border-border-subtle">
+                        {categoryBooks.length}
+                      </span>
+                    </h2>
+                    <SortableContext 
+                      items={categoryBooks.map(b => b.id)}
+                      strategy={rectSortingStrategy}
+                    >
+                      <div 
+                        className="grid gap-6 origin-top-left transition-all duration-300"
+                        style={gridStyle}
+                      >
+                        {categoryBooks.map(book => (
+                          <SortableBookCard 
+                            key={book.id} 
+                            book={book} 
+                            onRead={(b) => setReadingBookId(b.id)} 
+                            onViewNotes={(b) => setViewingSnippetsBookId(b.id)} 
+                            onDelete={removeBook} 
+                            viewMode={viewMode}
+                            zoom={currentZoom}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </div>
+                );
+              })}
+              
+              {processedBooks.filter(b => !b.categories || b.categories.length === 0).length > 0 && (
+                <div className="space-y-6">
+                  <h2 className="text-xl font-bold text-text-primary flex items-center gap-3">
+                    <Tag size={24} className="text-text-muted" />
+                    Sem Categoria
+                    <span className="text-sm font-normal text-text-muted bg-bg-card px-2 py-1 rounded-lg border border-border-subtle">
+                      {processedBooks.filter(b => !b.categories || b.categories.length === 0).length}
+                    </span>
+                  </h2>
+                  <SortableContext 
+                    items={processedBooks.filter(b => !b.categories || b.categories.length === 0).map(b => b.id)}
+                    strategy={rectSortingStrategy}
+                  >
+                    <div 
+                      className="grid gap-6 origin-top-left transition-all duration-300"
+                      style={gridStyle}
+                    >
+                      {processedBooks.filter(b => !b.categories || b.categories.length === 0).map(book => (
+                        <SortableBookCard 
+                          key={book.id} 
+                          book={book} 
+                          onRead={(b) => setReadingBookId(b.id)} 
+                          onViewNotes={(b) => setViewingSnippetsBookId(b.id)} 
+                          onDelete={removeBook} 
+                          viewMode={viewMode}
+                          zoom={currentZoom}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </div>
+              )}
+              
+              <div className="pt-8 border-t border-border-subtle">
+                  <h3 className="text-sm font-bold text-text-muted uppercase tracking-widest mb-6">Adicionar</h3>
+                  <div 
+                    className="grid gap-6 origin-top-left transition-all duration-300"
+                    style={gridStyle}
+                  >
+                    <motion.div 
+                      whileHover={{ y: -8 }}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="bg-bg-card border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/5]"
+                    >
+                      <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                          {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
+                      </div>
+                      <div className="text-center">
+                          <p 
+                            className="font-bold text-text-muted uppercase tracking-[0.2em]"
+                            style={{ fontSize: `${11 * currentZoom}px` }}
+                          >
+                            Novo Livro
+                          </p>
+                      </div>
+                      <input 
+                          type="file" 
+                          ref={fileInputRef} 
+                          onChange={handleBookUpload} 
+                          accept=".pdf" 
+                          className="hidden" 
+                      />
+                    </motion.div>
+                  </div>
+              </div>
             </div>
-            <div className="text-center">
-              <p 
-                className="font-bold text-text-muted uppercase tracking-[0.2em]"
-                style={{ fontSize: `${11 * currentZoom}px` }}
+          ) : (
+            <SortableContext 
+              items={processedBooks.map(b => b.id)}
+              strategy={viewMode === 'list' ? verticalListSortingStrategy : rectSortingStrategy}
+            >
+              <div 
+                className={`grid gap-6 origin-top-left transition-all duration-300 ${viewMode === 'list' ? 'grid-cols-1' : ''}`}
+                style={viewMode === 'list' ? {} : gridStyle}
               >
-                Novo Livro
-              </p>
-            </div>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleBookUpload} 
-              accept=".pdf" 
-              className="hidden" 
-            />
-          </motion.div>
-        </div>
+                {processedBooks.map(book => (
+                  <SortableBookCard 
+                    key={book.id} 
+                    book={book} 
+                    onRead={(b) => setReadingBookId(b.id)} 
+                    onViewNotes={(b) => setViewingSnippetsBookId(b.id)} 
+                    onDelete={removeBook} 
+                    viewMode={viewMode}
+                    zoom={currentZoom}
+                  />
+                ))}
+
+                <motion.div 
+                  whileHover={{ y: -8 }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-bg-card border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/5]"
+                >
+                  <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                    {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
+                  </div>
+                  <div className="text-center">
+                    <p 
+                      className="font-bold text-text-muted uppercase tracking-[0.2em]"
+                      style={{ fontSize: `${11 * currentZoom}px` }}
+                    >
+                      Novo Livro
+                    </p>
+                  </div>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleBookUpload} 
+                    accept=".pdf" 
+                    className="hidden" 
+                  />
+                </motion.div>
+              </div>
+            </SortableContext>
+          )}
+        </DndContext>
       );
     }
 
@@ -665,6 +880,64 @@ export default function App() {
                               >
                                 <LayoutGrid size={14} /> Por Categoria
                               </button>
+
+                              {activeTab === 'biblioteca' && (
+                                <button
+                                  onClick={() => { setViewMode('status'); setIsMenuOpen(false); }}
+                                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${viewMode === 'status' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
+                                >
+                                  <Check size={14} /> Por Status
+                                </button>
+                              )}
+
+                              {activeTab === 'biblioteca' && (
+                                <>
+                                  <div className="h-px bg-border-subtle my-2 mx-2" />
+                                  <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest px-4 py-3">Ordenar Por</p>
+                                  <button
+                                    onClick={() => { setLibrarySort('manual'); setIsMenuOpen(false); }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${librarySort === 'manual' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
+                                  >
+                                    <Move size={14} /> Manual
+                                  </button>
+                                  <button
+                                    onClick={() => { setLibrarySort('recent'); setIsMenuOpen(false); }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${librarySort === 'recent' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
+                                  >
+                                    <Plus size={14} className="rotate-45" /> Recentes
+                                  </button>
+                                  <button
+                                    onClick={() => { setLibrarySort('rating'); setIsMenuOpen(false); }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${librarySort === 'rating' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
+                                  >
+                                    <Star size={14} /> Avaliação
+                                  </button>
+                                  <button
+                                    onClick={() => { setLibrarySort('progress'); setIsMenuOpen(false); }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${librarySort === 'progress' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
+                                  >
+                                    <Rows size={14} /> Progresso
+                                  </button>
+
+                                  <div className="h-px bg-border-subtle my-2 mx-2" />
+                                  <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest px-4 py-3">Filtrar por Status</p>
+                                  <button
+                                    onClick={() => { setLibraryFilter('Todos'); setIsMenuOpen(false); }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${libraryFilter === 'Todos' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
+                                  >
+                                    <LayoutGrid size={14} /> Todos
+                                  </button>
+                                  {['Lendo agora', 'Concluído', 'Pausado', 'Próximo', 'Descartado'].map((status) => (
+                                    <button
+                                      key={status}
+                                      onClick={() => { setLibraryFilter(status as any); setIsMenuOpen(false); }}
+                                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${libraryFilter === status ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
+                                    >
+                                      <Check size={14} className={libraryFilter === status ? 'opacity-100' : 'opacity-0'} /> {status}
+                                    </button>
+                                  ))}
+                                </>
+                              )}
                             </div>
                           </motion.div>
                         </>

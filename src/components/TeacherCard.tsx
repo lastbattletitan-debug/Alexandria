@@ -4,7 +4,7 @@ import { Pencil, Trash2, Brain, BookOpen } from 'lucide-react';
 
 interface TeacherCardProps {
   teacher: Teacher;
-  viewMode: 'grid' | 'list' | 'categories';
+  viewMode: 'grid' | 'list' | 'categories' | 'status';
   onChat: () => void;
   onEdit: (e: React.MouseEvent) => void;
   onDelete?: (e: React.MouseEvent) => void;

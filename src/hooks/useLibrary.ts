@@ -203,6 +203,10 @@ export function useLibrary() {
     }));
   };
 
+  const reorderBooks = (newBooks: LibraryBook[]) => {
+    setBooks(newBooks);
+  };
+
   return {
     books,
     globalCategories,
@@ -219,5 +223,6 @@ export function useLibrary() {
     createGlobalCategory,
     renameCategory,
     deleteCategory,
+    reorderBooks,
   };
 }
