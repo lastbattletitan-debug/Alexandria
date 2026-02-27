@@ -210,10 +210,6 @@ export default function App() {
 
   const renderContent = () => {
     if (activeTab === 'biblioteca') {
-      const gridStyle = {
-        gridTemplateColumns: `repeat(auto-fill, minmax(${200 * currentZoom}px, 1fr))`
-      };
-
       if (viewMode === 'categories') {
         const allCategories = Array.from(new Set(books.flatMap(b => b.categories || [])));
         const booksWithNoCategory = books.filter(b => !b.categories || b.categories.length === 0);
@@ -232,8 +228,7 @@ export default function App() {
                     </span>
                   </h2>
                   <div 
-                    className="grid gap-6 origin-top-left transition-all duration-300"
-                    style={gridStyle}
+                    className="grid gap-6 origin-top-left transition-all duration-300 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                   >
                     {categoryBooks.map(book => (
                       <BookCard 
@@ -242,6 +237,7 @@ export default function App() {
                         onRead={(b) => setReadingBookId(b.id)} 
                         onViewNotes={(b) => setViewingSnippetsBookId(b.id)} 
                         onDelete={removeBook} 
+                        zoom={currentZoom}
                       />
                     ))}
                   </div>
@@ -259,8 +255,7 @@ export default function App() {
                   </span>
                 </h2>
                 <div 
-                  className="grid gap-6 origin-top-left transition-all duration-300"
-                  style={gridStyle}
+                  className="grid gap-6 origin-top-left transition-all duration-300 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                 >
                   {booksWithNoCategory.map(book => (
                     <BookCard 
@@ -269,6 +264,7 @@ export default function App() {
                       onRead={(b) => setReadingBookId(b.id)} 
                       onViewNotes={(b) => setViewingSnippetsBookId(b.id)} 
                       onDelete={removeBook} 
+                      zoom={currentZoom}
                     />
                   ))}
                 </div>
@@ -277,25 +273,32 @@ export default function App() {
             
             <div className="pt-8 border-t border-border-subtle">
                 <h3 className="text-sm font-bold text-text-muted uppercase tracking-widest mb-6">Adicionar</h3>
-                <motion.div 
-                whileHover={{ y: -8 }}
-                onClick={() => fileInputRef.current?.click()}
-                className="bg-bg-card border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4] w-64"
-                >
-                <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                    {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
+                <div className="grid gap-6 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  <motion.div 
+                    whileHover={{ y: -8 }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-bg-card border border-dashed border-white/10 rounded-[48px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
+                  >
+                    <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                        {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
+                    </div>
+                    <div className="text-center">
+                        <p 
+                          className="font-bold text-text-muted uppercase tracking-[0.2em]"
+                          style={{ fontSize: `${11 * currentZoom}px` }}
+                        >
+                          Novo Livro
+                        </p>
+                    </div>
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleBookUpload} 
+                        accept=".pdf" 
+                        className="hidden" 
+                    />
+                  </motion.div>
                 </div>
-                <div className="text-center">
-                    <p className="text-[11px] font-bold text-text-muted uppercase tracking-[0.2em]">Novo Livro</p>
-                </div>
-                <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    onChange={handleBookUpload} 
-                    accept=".pdf" 
-                    className="hidden" 
-                />
-                </motion.div>
             </div>
           </div>
         );
@@ -303,8 +306,7 @@ export default function App() {
 
       return (
         <div 
-          className="grid gap-6 origin-top-left transition-all duration-300"
-          style={gridStyle}
+          className="grid gap-6 origin-top-left transition-all duration-300 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
         >
           {books.map(book => (
             <BookCard 
@@ -313,19 +315,25 @@ export default function App() {
               onRead={(b) => setReadingBookId(b.id)} 
               onViewNotes={(b) => setViewingSnippetsBookId(b.id)} 
               onDelete={removeBook} 
+              zoom={currentZoom}
             />
           ))}
 
           <motion.div 
             whileHover={{ y: -8 }}
             onClick={() => fileInputRef.current?.click()}
-            className="bg-bg-card border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
+            className="bg-bg-card border border-dashed border-white/10 rounded-[48px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
           >
             <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
               {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
             </div>
             <div className="text-center">
-              <p className="text-[11px] font-bold text-text-muted uppercase tracking-[0.2em]">Novo Livro</p>
+              <p 
+                className="font-bold text-text-muted uppercase tracking-[0.2em]"
+                style={{ fontSize: `${11 * currentZoom}px` }}
+              >
+                Novo Livro
+              </p>
             </div>
             <input 
               type="file" 
@@ -344,10 +352,6 @@ export default function App() {
     return (
       <div 
         className={`grid gap-6 origin-top-left transition-transform duration-300 ${viewMode === 'grid' ? 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}
-        style={{ 
-          transform: `scale(${currentZoom})`,
-          width: `${100 / currentZoom}%`
-        }}
       >
         {displayTeachers.map((teacher) => (
           <TeacherCard
@@ -359,6 +363,7 @@ export default function App() {
             onDelete={() => setTeacherToDelete(teacher)}
             onOpenBrain={() => setBrainTeacherId(teacher.id)}
             onOpenTopics={() => setTopicsTeacherId(teacher.id)}
+            zoom={currentZoom}
           />
         ))}
         {viewMode === 'grid' && (
@@ -371,7 +376,10 @@ export default function App() {
               <Plus className="text-text-primary" size={24} />
             </div>
             <div className="text-center">
-              <p className="text-[11px] font-bold text-text-muted uppercase tracking-[0.2em]">
+              <p 
+                className="font-bold text-text-muted uppercase tracking-[0.2em]"
+                style={{ fontSize: `${11 * currentZoom}px` }}
+              >
                 {activeTab === 'mentores' ? 'Novo Mentor' : 'Novo Professor'}
               </p>
             </div>
@@ -434,12 +442,12 @@ export default function App() {
         <div className="mt-auto flex flex-col gap-6 min-w-[224px]">
           <div className="px-6 py-4 bg-border-subtle rounded-2xl border border-border-subtle">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Zoom dos Cards</span>
+              <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Zoom dos Textos</span>
               <span className="text-[9px] font-bold text-text-primary bg-border-strong px-2 py-0.5 rounded">{Math.round(currentZoom * 100)}%</span>
             </div>
             <input 
               type="range" 
-              min="0.5" 
+              min="0.3" 
               max="1.5" 
               step="0.1" 
               value={currentZoom}

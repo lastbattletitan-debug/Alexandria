@@ -7,16 +7,17 @@ interface BookCardProps {
   onRead: (book: LibraryBook) => void;
   onViewNotes: (book: LibraryBook) => void;
   onDelete: (id: string) => void;
+  zoom?: number;
 }
 
-export function BookCard({ book, onRead, onViewNotes, onDelete }: BookCardProps) {
+export function BookCard({ book, onRead, onViewNotes, onDelete, zoom = 1 }: BookCardProps) {
   return (
     <motion.div
       whileHover={{ y: -8 }}
-      className="bg-bg-card border border-white/5 rounded-[32px] p-4 flex flex-col items-center gap-4 group hover:border-white/20 transition-all aspect-[3/4] relative overflow-hidden"
+      className="bg-bg-card border border-white/5 rounded-[48px] p-6 flex flex-col items-center gap-4 group hover:border-white/20 transition-all aspect-[3/4] relative overflow-hidden"
     >
       {/* Image Container */}
-      <div className="w-full flex-1 relative rounded-2xl overflow-hidden bg-black/20">
+      <div className="w-full flex-1 relative rounded-[32px] overflow-hidden bg-black/20">
           {book.thumbnail ? (
             <img 
               src={book.thumbnail} 
@@ -57,7 +58,13 @@ export function BookCard({ book, onRead, onViewNotes, onDelete }: BookCardProps)
 
       {/* Info */}
       <div className="w-full text-center space-y-3 px-2 pb-2">
-        <h3 className="text-sm font-bold text-text-primary line-clamp-1" title={book.title}>{book.title}</h3>
+        <h3 
+          className="font-bold text-text-primary line-clamp-1" 
+          style={{ fontSize: `${14 * zoom}px` }}
+          title={book.title}
+        >
+          {book.title}
+        </h3>
         
         {/* Progress Bar */}
         <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -68,7 +75,10 @@ export function BookCard({ book, onRead, onViewNotes, onDelete }: BookCardProps)
         </div>
         
         {/* Page Counter */}
-        <p className="text-[10px] font-bold text-text-muted">
+        <p 
+          className="font-bold text-text-muted"
+          style={{ fontSize: `${10 * zoom}px` }}
+        >
             {book.currentPage || 1} / {book.totalPages || '--'}
         </p>
       </div>

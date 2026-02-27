@@ -10,6 +10,7 @@ interface TeacherCardProps {
   onDelete?: (e: React.MouseEvent) => void;
   onOpenBrain: (e: React.MouseEvent) => void;
   onOpenTopics: (e: React.MouseEvent) => void;
+  zoom?: number;
 }
 
 export function TeacherCard({ 
@@ -19,7 +20,8 @@ export function TeacherCard({
   onEdit, 
   onDelete, 
   onOpenBrain,
-  onOpenTopics
+  onOpenTopics,
+  zoom = 1
 }: TeacherCardProps) {
   const isList = viewMode === 'list';
 
@@ -83,15 +85,24 @@ export function TeacherCard({
       <div className={`relative z-20 flex flex-col items-start gap-3 ${
         isList ? 'flex-1 justify-center px-8' : 'mt-auto p-8'
       }`}>
-        <span className="text-[9px] font-bold uppercase tracking-[0.25em] bg-bg-card/80 backdrop-blur-md text-text-primary px-3 py-1.5 rounded-lg border border-border-strong shadow-sm">
+        <span 
+          className="font-bold uppercase tracking-[0.25em] bg-bg-card/80 backdrop-blur-md text-text-primary px-3 py-1.5 rounded-lg border border-border-strong shadow-sm"
+          style={{ fontSize: `${9 * zoom}px` }}
+        >
           {teacher.category || 'Mente'}
         </span>
         
         <div className="mt-1">
-          <h3 className="text-text-primary text-2xl font-bold leading-tight tracking-tight drop-shadow-sm">
+          <h3 
+            className="text-text-primary font-bold leading-tight tracking-tight drop-shadow-sm"
+            style={{ fontSize: `${24 * zoom}px` }}
+          >
             {teacher.name}
           </h3>
-          <p className="text-text-muted text-[10px] font-bold uppercase tracking-[0.2em] mt-1.5">
+          <p 
+            className="text-text-muted font-bold uppercase tracking-[0.2em] mt-1.5"
+            style={{ fontSize: `${10 * zoom}px` }}
+          >
             {teacher.role}
           </p>
         </div>
