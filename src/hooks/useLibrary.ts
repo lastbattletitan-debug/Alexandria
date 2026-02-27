@@ -90,11 +90,24 @@ export function useLibrary() {
     });
   };
 
+  const updateBookCategory = (bookId: string, category: string) => {
+    setBooks((prev) => prev.map(book => {
+      if (book.id === bookId) {
+        return {
+          ...book,
+          category
+        };
+      }
+      return book;
+    }));
+  };
+
   return {
     books,
     addBook,
     removeBook,
     addSnippet,
     updateBookProgress,
+    updateBookCategory,
   };
 }

@@ -10,6 +10,7 @@ export type LibraryBook = {
   snippets?: string[];
   currentPage?: number;
   totalPages?: number;
+  category?: string;
 };
 
 export type TeacherFile = {

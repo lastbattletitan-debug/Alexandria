@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { ChevronLeft, ChevronRight, Loader2, ArrowLeft, Minus, Plus, Rows, FileText, Search, X, Save } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, ArrowLeft, Minus, Plus, Rows, FileText, Search, X, Save, Tag } from 'lucide-react';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { extractTextFromPdf } from '../utils/pdfUtils';
@@ -14,9 +14,23 @@ interface PdfViewerProps {
   onClose?: () => void;
   onSaveSnippet?: (text: string) => void;
   onPageChange?: (page: number, total: number) => void;
+  onOpenNotes?: () => void;
+  onUpdateCategory?: (category: string) => void;
+  categories?: string[];
+  currentCategory?: string;
 }
 
-export function PdfViewer({ url, title, onClose, onSaveSnippet, onPageChange }: PdfViewerProps) {
+export function PdfViewer({ 
+  url, 
+  title, 
+  onClose, 
+  onSaveSnippet, 
+  onPageChange,
+  onOpenNotes,
+  onUpdateCategory,
+  categories = [],
+  currentCategory
+}: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1.0);
@@ -32,6 +46,10 @@ export function PdfViewer({ url, title, onClose, onSaveSnippet, onPageChange }: 
   const [currentResultIndex, setCurrentResultIndex] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const [pdfText, setPdfText] = useState<{page: number, text: string}[]>([]);
+
+  // Category state
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [newCategory, setNewCategory] = useState('');
 
   // Selection state
   const [selection, setSelection] = useState<string | null>(null);
@@ -250,6 +268,79 @@ export function PdfViewer({ url, title, onClose, onSaveSnippet, onPageChange }: 
 
         {/* Right: Controls */}
         <div className="flex items-center gap-4 justify-end flex-1">
+          {/* Notes Button */}
+          {onOpenNotes && (
+            <button
+              onClick={onOpenNotes}
+              className="p-2 bg-bg-card border border-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors"
+              title="Notas"
+            >
+              <FileText size={16} />
+            </button>
+          )}
+
+          {/* Category Button */}
+          {onUpdateCategory && (
+            <div className="relative">
+              <button
+                onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                className={`p-2 rounded-xl transition-colors ${isCategoryOpen ? 'bg-text-primary text-bg-main' : 'bg-bg-card border border-border-subtle text-text-muted hover:text-text-primary'}`}
+                title="Categoria"
+              >
+                <Tag size={16} />
+              </button>
+              
+              {isCategoryOpen && (
+                <div className="absolute top-full right-0 mt-2 w-64 bg-bg-card border border-border-strong rounded-xl shadow-2xl p-4 z-30 flex flex-col gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Parte 01: Criar nova categoria</p>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={newCategory}
+                        onChange={(e) => setNewCategory(e.target.value)}
+                        placeholder="Nova categoria..."
+                        className="flex-1 bg-bg-main border border-border-subtle rounded-lg px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:border-border-strong"
+                      />
+                      <button 
+                        onClick={() => {
+                          if (newCategory.trim()) {
+                            onUpdateCategory(newCategory.trim());
+                            setNewCategory('');
+                            setIsCategoryOpen(false);
+                          }
+                        }}
+                        className="p-1.5 bg-text-primary text-bg-main rounded-lg hover:opacity-90"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {categories.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Parte 02: Categorias existentes</p>
+                      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                        {categories.map(cat => (
+                          <button
+                            key={cat}
+                            onClick={() => {
+                              onUpdateCategory(cat);
+                              setIsCategoryOpen(false);
+                            }}
+                            className={`px-2 py-1 rounded-md text-xs border transition-colors ${currentCategory === cat ? 'bg-text-primary text-bg-main border-transparent' : 'bg-bg-main border-border-subtle text-text-primary hover:border-text-primary'}`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Search Toggle */}
           <div className="relative">
              <button
