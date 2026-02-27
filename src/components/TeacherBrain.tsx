@@ -48,8 +48,10 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
     if (files.length === 0) return;
 
     for (const file of files) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert(`O arquivo ${file.name} é muito grande. O limite é 5MB.`);
+      // Increase limit to 20MB for videos/images
+      const limit = 20 * 1024 * 1024;
+      if (file.size > limit) {
+        alert(`O arquivo ${file.name} é muito grande. O limite é 20MB.`);
         continue;
       }
 
@@ -62,6 +64,7 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
             let mimeType = file.type;
             if (!mimeType && file.name.endsWith('.md')) mimeType = 'text/markdown';
             if (!mimeType && file.name.endsWith('.txt')) mimeType = 'text/plain';
+            if (!mimeType && file.name.endsWith('.epub')) mimeType = 'application/epub+zip';
             
             onAddFile(teacher.id, {
               name: file.name,
@@ -142,7 +145,7 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
                     ref={fileInputRef}
                     onChange={handleFileUpload}
                     className="hidden"
-                    accept="image/png,image/jpeg,text/plain,application/pdf,text/markdown"
+                    accept="image/*,video/*,application/pdf,text/plain,text/markdown,application/epub+zip"
                     multiple
                   />
                   <button
@@ -172,8 +175,16 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
                   teacher.files.map((file) => (
                     <div key={file.id} className="group flex items-center justify-between bg-bg-card border border-border-subtle p-4 rounded-2xl hover:border-border-strong transition-all">
                       <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-xl ${file.type === 'link' ? 'bg-blue-500/10 text-blue-400' : 'bg-orange-500/10 text-orange-400'}`}>
-                          {file.type === 'link' ? <LinkIcon size={18} /> : <FileText size={18} />}
+                        <div className={`p-3 rounded-xl ${
+                          file.type === 'link' ? 'bg-blue-500/10 text-blue-400' : 
+                          file.mimeType.startsWith('image/') ? 'bg-purple-500/10 text-purple-400' :
+                          file.mimeType.startsWith('video/') ? 'bg-red-500/10 text-red-400' :
+                          'bg-orange-500/10 text-orange-400'
+                        }`}>
+                          {file.type === 'link' ? <LinkIcon size={18} /> : 
+                           file.mimeType.startsWith('image/') ? <Upload size={18} /> :
+                           file.mimeType.startsWith('video/') ? <Zap size={18} /> :
+                           <FileText size={18} />}
                         </div>
                         <div>
                           <p className="text-sm font-bold text-text-primary truncate max-w-[200px] sm:max-w-[300px]">{file.name}</p>

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library as LibraryIcon, Search, Bell, Settings, GraduationCap, Sun, Moon, Brain, User, BookOpen, Loader2, X, Trash2 } from 'lucide-react';
+import { Plus, MoreVertical, Grid, List, LayoutGrid, Users, Library as LibraryIcon, Search, Settings, GraduationCap, Sun, Moon, Brain, User, BookOpen, Loader2, X, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTeachers } from './hooks/useTeachers';
 import { useLibrary } from './hooks/useLibrary';
@@ -44,11 +44,25 @@ export default function App() {
   const [teacherToDelete, setTeacherToDelete] = useState<Teacher | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   
-  const [zoomLevels, setZoomLevels] = useState<{ [key in Tab]: number }>({
-    professores: 1,
-    mentores: 1,
-    biblioteca: 1
+  const [zoomLevels, setZoomLevels] = useState<{ [key in Tab]: number }>(() => {
+    const saved = localStorage.getItem('alexandria-zoom-levels');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse zoom levels', e);
+      }
+    }
+    return {
+      professores: 1,
+      mentores: 1,
+      biblioteca: 1
+    };
   });
+
+  useEffect(() => {
+    localStorage.setItem('alexandria-zoom-levels', JSON.stringify(zoomLevels));
+  }, [zoomLevels]);
 
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -148,7 +162,7 @@ export default function App() {
               {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
             </div>
             <div className="text-center">
-              <p className="text-[11px] font-bold text-text-muted uppercase tracking-[0.2em]">Upload de Livro</p>
+              <p className="text-[11px] font-bold text-text-muted uppercase tracking-[0.2em]">Novo Livro</p>
             </div>
             <input 
               type="file" 
@@ -409,11 +423,6 @@ export default function App() {
                   >
                     {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
                   </button>
-
-                  <button className="relative p-2 text-text-muted hover:text-text-primary transition-colors">
-                    <Bell size={24} />
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-bg-main" />
-                  </button>
                   
                   <div 
                     className="flex items-center gap-4 pl-6 border-l border-border-strong cursor-pointer"
@@ -453,11 +462,17 @@ export default function App() {
 
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => openAddModal(activeTab === 'mentores' ? 'Mentor' : 'Professor')}
+                    onClick={() => {
+                      if (activeTab === 'biblioteca') {
+                        fileInputRef.current?.click();
+                      } else {
+                        openAddModal(activeTab === 'mentores' ? 'Mentor' : 'Professor');
+                      }
+                    }}
                     className="flex items-center justify-center gap-3 bg-text-primary text-bg-main px-8 py-4 rounded-full text-[10px] font-bold uppercase tracking-[0.15em] hover:opacity-90 transition-all active:scale-95 whitespace-nowrap"
                   >
                     <Plus size={16} />
-                    {activeTab === 'mentores' ? 'Adicionar novo mentor' : 'Adicionar novo professor'}
+                    {activeTab === 'mentores' ? 'Adicionar novo mentor' : activeTab === 'biblioteca' ? 'Adicionar novo livro' : 'Adicionar novo professor'}
                   </button>
                   
                   <div className="relative">

@@ -1,6 +1,6 @@
 import { Teacher, ChatMessage, TeacherFile, Topic } from '../types';
 
-const CHUNK_SIZE = 10000; // ~10KB per chunk
+const CHUNK_SIZE = 120000; // ~120KB per chunk - Llama 3.3 has a large context window, so we can send much more at once.
 
 function splitTextIntoChunks(text: string, chunkSize: number): string[] {
   const chunks: string[] = [];
@@ -81,10 +81,13 @@ export async function chatWithTeacher(
   topic?: Topic
 ): Promise<string> {
   try {
+    // Truncate history to last 10 messages to save tokens while maintaining context
+    const truncatedHistory = history.slice(-10);
+    
     // We pass the history to the API now for better context handling in Groq
     const prompt = teacher.systemInstruction;
 
-    return await callAiApiWithRetry(message, prompt, history);
+    return await callAiApiWithRetry(message, prompt, truncatedHistory);
   } catch (error) {
     console.error('Error chatting with teacher:', error);
     return 'Desculpe, não consegui responder no momento. Tente novamente mais tarde.';
@@ -109,32 +112,31 @@ export async function generateSummary(teacher: Teacher, selectedFiles?: TeacherF
 
     // 3. Process chunks (Map phase)
     if (chunks.length === 1) {
-      const prompt = `Você é um especialista em ${teacher.specialty}. Resuma o seguinte conteúdo de forma concisa e clara:\n\n${chunks[0]}`;
+      const prompt = `Aja como um especialista em ${teacher.specialty}. Crie um índice estruturado e hierárquico dos tópicos e subtópicos deste conteúdo. Seja direto e use Português do Brasil.`;
       return await callAiApiWithRetry(chunks[0], prompt);
     }
 
     const partialSummaries: string[] = [];
     
     for (let i = 0; i < chunks.length; i++) {
-      const chunkPrompt = `Você é um especialista em ${teacher.specialty}. Este é a parte ${i + 1} de ${chunks.length} de um texto longo. Resuma esta parte focando nos pontos principais e mantendo a coerência:\n\n${chunks[i]}`;
+      const chunkPrompt = `Extraia apenas os tópicos principais (índice) desta parte (${i + 1}/${chunks.length}) de um documento. Seja extremamente conciso.`;
       
       try {
         const summary = await callAiApiWithRetry(chunks[i], chunkPrompt);
         partialSummaries.push(summary);
         
-        // Add a small delay between successful chunks to be nice to the API
         if (i < chunks.length - 1) {
-          await delay(2000); 
+          await delay(1000); 
         }
       } catch (err) {
         console.error(`Erro ao processar parte ${i + 1}:`, err);
-        partialSummaries.push(`[Erro ao resumir parte ${i + 1}]`);
+        partialSummaries.push(`[Erro na parte ${i + 1}]`);
       }
     }
 
     // 4. Consolidate summaries (Reduce phase)
-    const combinedSummaries = partialSummaries.join('\n\n---\n\n');
-    const finalPrompt = `Você é um especialista em ${teacher.specialty}. Abaixo estão resumos parciais de um texto longo (livro ou documento). Sua tarefa é criar um RESUMO FINAL CONSOLIDADO, coerente e bem estruturado, unindo as informações dos resumos parciais. Ignore redundâncias e foque na narrativa principal e conceitos chave.\n\nResumos Parciais:\n${combinedSummaries}`;
+    const combinedSummaries = partialSummaries.join('\n');
+    const finalPrompt = `Aja como um especialista em ${teacher.specialty}. Consolide os seguintes tópicos extraídos de um documento em um único índice final organizado, hierárquico e sem redundâncias. Use Português do Brasil.`;
 
     return await callAiApiWithRetry(combinedSummaries, finalPrompt);
 
