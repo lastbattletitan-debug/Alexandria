@@ -5,7 +5,6 @@ import { Pencil, Trash2, Brain, BookOpen } from 'lucide-react';
 interface TeacherCardProps {
   teacher: Teacher;
   viewMode: 'grid' | 'list' | 'categories';
-  zoom: number;
   onChat: () => void;
   onEdit: (e: React.MouseEvent) => void;
   onDelete?: (e: React.MouseEvent) => void;
@@ -16,7 +15,6 @@ interface TeacherCardProps {
 export function TeacherCard({ 
   teacher, 
   viewMode, 
-  zoom, 
   onChat, 
   onEdit, 
   onDelete, 
@@ -30,7 +28,6 @@ export function TeacherCard({
       whileHover={{ y: -8 }}
       whileTap={{ scale: 0.98 }}
       onClick={onChat}
-      style={{ scale: zoom }}
       className={`cursor-pointer group relative rounded-[48px] overflow-hidden bg-bg-card flex transition-all duration-500 border border-white/5 hover:border-white/20 ${
         isList ? 'flex-row h-32' : 'flex-col aspect-[3/4]'
       }`}

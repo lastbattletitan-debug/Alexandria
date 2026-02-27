@@ -137,12 +137,18 @@ export function TeacherChat({
                   <Bookmark size={24} />
                 </div>
               ) : (
-                <img
-                  src={teacher.imageUrl}
-                  alt={teacher.name}
-                  className="w-12 h-12 rounded-2xl object-cover border border-border-strong grayscale"
-                  referrerPolicy="no-referrer"
-                />
+                teacher.imageUrl ? (
+                  <img
+                    src={teacher.imageUrl}
+                    alt={teacher.name}
+                    className="w-12 h-12 rounded-2xl object-cover border border-border-strong grayscale"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-2xl bg-bg-card border border-border-strong flex items-center justify-center">
+                    <Brain size={24} className="text-text-muted" />
+                  </div>
+                )
               )}
               <div>
                 <h2 className="font-bold text-text-primary leading-tight">
@@ -238,7 +244,11 @@ export function TeacherChat({
               {currentTopic ? (
                 <Bookmark size={48} className="opacity-20" />
               ) : (
-                <img src={teacher.imageUrl} alt="" className="w-full h-full object-cover opacity-20 grayscale" referrerPolicy="no-referrer" />
+                teacher.imageUrl ? (
+                  <img src={teacher.imageUrl} alt="" className="w-full h-full object-cover opacity-20 grayscale" referrerPolicy="no-referrer" />
+                ) : (
+                  <Brain size={48} className="opacity-20" />
+                )
               )}
             </div>
             <p className="text-center max-w-sm text-sm font-medium leading-relaxed">

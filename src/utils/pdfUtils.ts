@@ -3,7 +3,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 // Configurar o worker do PDF.js
 // Usando CDN para evitar problemas de build com Vite/Webpack
 // Importante: Usar .mjs para compatibilidade com módulos ES
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 export async function generatePdfThumbnail(file: File): Promise<string> {
   try {

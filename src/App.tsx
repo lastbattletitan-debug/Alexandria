@@ -12,6 +12,7 @@ import { TeacherBrain } from './components/TeacherBrain';
 import { Teacher, Topic, LibraryBook } from './types';
 import { TeacherTopics } from './components/TeacherTopics';
 import { ProfileModal } from './components/ProfileModal';
+import { PdfViewer } from './components/PdfViewer';
 
 type ViewMode = 'grid' | 'list' | 'categories';
 type Tab = 'professores' | 'mentores' | 'biblioteca';
@@ -153,21 +154,31 @@ export default function App() {
   const renderContent = () => {
     if (activeTab === 'biblioteca') {
       return (
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div 
+          className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 origin-top-left transition-transform duration-300"
+          style={{ 
+            transform: `scale(${currentZoom})`,
+            width: `${100 / currentZoom}%`
+          }}
+        >
           {books.map(book => (
             <motion.div
               key={book.id}
-              layout
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
+              whileHover={{ y: -8 }}
               className="bg-bg-card border border-white/5 rounded-[48px] overflow-hidden group hover:border-white/20 transition-all flex flex-col min-h-[400px]"
             >
               <div className="relative aspect-[3/4] overflow-hidden">
-                <img 
-                  src={book.thumbnail} 
-                  alt={book.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
+                {book.thumbnail ? (
+                  <img 
+                    src={book.thumbnail} 
+                    alt={book.title} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-bg-card flex items-center justify-center">
+                    <BookOpen size={48} className="text-text-muted opacity-20" />
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
                   <button 
                     onClick={() => setReadingBook(book)}
@@ -191,8 +202,6 @@ export default function App() {
           ))}
 
           <motion.div 
-            layout
-            style={{ scale: currentZoom }}
             whileHover={{ y: -8 }}
             onClick={() => fileInputRef.current?.click()}
             className="bg-bg-card border border-dashed border-white/10 rounded-[48px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
@@ -218,13 +227,18 @@ export default function App() {
     const displayTeachers = filteredTeachers.filter(t => t.role === (activeTab === 'mentores' ? 'Mentor' : 'Professor'));
 
     return (
-      <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
+      <div 
+        className={`grid gap-6 origin-top-left transition-transform duration-300 ${viewMode === 'grid' ? 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}
+        style={{ 
+          transform: `scale(${currentZoom})`,
+          width: `${100 / currentZoom}%`
+        }}
+      >
         {displayTeachers.map((teacher) => (
           <TeacherCard
             key={teacher.id}
             teacher={teacher}
             viewMode={viewMode}
-            zoom={currentZoom}
             onChat={() => setSelectedTeacherId(teacher.id)}
             onEdit={() => { setEditingTeacher(teacher); setIsModalOpen(true); }}
             onDelete={() => setTeacherToDelete(teacher)}
@@ -234,8 +248,6 @@ export default function App() {
         ))}
         {viewMode === 'grid' && (
           <motion.div 
-            layout
-            style={{ scale: currentZoom }}
             whileHover={{ y: -8 }}
             onClick={() => openAddModal(activeTab === 'mentores' ? 'Mentor' : 'Professor')}
             className="bg-bg-card border border-dashed border-white/10 rounded-[48px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
@@ -615,11 +627,7 @@ export default function App() {
                 </button>
               </div>
               <div className="flex-1 overflow-hidden">
-                <iframe 
-                  src={readingBook.url} 
-                  className="w-full h-full border-none"
-                  title={readingBook.title}
-                />
+                <PdfViewer url={readingBook.url} />
               </div>
             </div>
           )}
