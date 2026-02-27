@@ -1,6 +1,6 @@
 import { Teacher, ChatMessage, TeacherFile, Topic } from '../types';
 
-const CHUNK_SIZE = 120000; // ~120KB per chunk - Llama 3.3 has a large context window, so we can send much more at once.
+const CHUNK_SIZE = 80000; // Reduced chunk size for better reliability
 
 function splitTextIntoChunks(text: string, chunkSize: number): string[] {
   const chunks: string[] = [];
@@ -60,7 +60,8 @@ async function callAiApiWithRetry(text: string, prompt: string, history?: ChatMe
       
       if (isRateLimit) {
         if (attempt < retries - 1) {
-          const waitTime = 65000; 
+          const waitTime = 5000 * (attempt + 1); // Exponential backoff: 5s, 10s, 15s
+          console.warn(`Rate limit hit. Retrying in ${waitTime}ms...`);
           await delay(waitTime);
           continue;
         } else {
@@ -102,8 +103,14 @@ export async function generateSummary(teacher: Teacher, selectedFiles?: TeacherF
   }
 
   try {
-    // 1. Combine all file content
-    const fullText = filesToSummarize
+    // 1. Combine all file content (filter out empty data)
+    const validFiles = filesToSummarize.filter(f => f.data && f.data.trim().length > 0);
+    
+    if (validFiles.length === 0) {
+        return 'Nenhum conteúdo válido encontrado nos arquivos selecionados.';
+    }
+
+    const fullText = validFiles
       .map((f) => `--- ARQUIVO: ${f.name} ---\n${f.data}`)
       .join('\n\n');
 
@@ -119,24 +126,31 @@ export async function generateSummary(teacher: Teacher, selectedFiles?: TeacherF
     const partialSummaries: string[] = [];
     
     for (let i = 0; i < chunks.length; i++) {
-      const chunkPrompt = `Extraia apenas os tópicos principais (índice) desta parte (${i + 1}/${chunks.length}) de um documento. Seja extremamente conciso.`;
+      const chunkPrompt = `Extraia apenas os tópicos principais (índice) desta parte (${i + 1}/${chunks.length}) de um documento. Seja extremamente conciso. Ignore erros de formatação.`;
       
       try {
         const summary = await callAiApiWithRetry(chunks[i], chunkPrompt);
-        partialSummaries.push(summary);
+        if (summary && !summary.includes("Erro na parte")) {
+             partialSummaries.push(summary);
+        }
         
+        // Increased delay between chunks to avoid rate limits
         if (i < chunks.length - 1) {
-          await delay(1000); 
+          await delay(2000); 
         }
       } catch (err) {
         console.error(`Erro ao processar parte ${i + 1}:`, err);
-        partialSummaries.push(`[Erro na parte ${i + 1}]`);
+        // Do not add error messages to the partial summaries to avoid confusing the final consolidation
       }
+    }
+
+    if (partialSummaries.length === 0) {
+        return 'Não foi possível gerar o sumário. Ocorreram erros ao processar todas as partes do documento.';
     }
 
     // 4. Consolidate summaries (Reduce phase)
     const combinedSummaries = partialSummaries.join('\n');
-    const finalPrompt = `Aja como um especialista em ${teacher.specialty}. Consolide os seguintes tópicos extraídos de um documento em um único índice final organizado, hierárquico e sem redundâncias. Use Português do Brasil.`;
+    const finalPrompt = `Aja como um especialista em ${teacher.specialty}. Consolide os seguintes tópicos extraídos de diferentes partes de um documento em um único índice final organizado, hierárquico e sem redundâncias. Use Português do Brasil. Ignore quaisquer menções a erros de processamento se houver.`;
 
     return await callAiApiWithRetry(combinedSummaries, finalPrompt);
 

@@ -5,6 +5,7 @@ export type LibraryBook = {
   author: string;
   thumbnail: string;
   url: string;
+  file?: Blob;
   addedAt: string;
 };
 

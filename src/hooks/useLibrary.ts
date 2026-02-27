@@ -13,7 +13,14 @@ export function useLibrary() {
       try {
         const stored = await localforage.getItem<LibraryBook[]>(STORAGE_KEY);
         if (stored) {
-          setBooks(stored);
+          // Regenerate URLs for stored blobs
+          const booksWithUrls = stored.map(book => {
+            if (book.file && book.file instanceof Blob) {
+              return { ...book, url: URL.createObjectURL(book.file) };
+            }
+            return book;
+          });
+          setBooks(booksWithUrls);
         }
       } catch (e) {
         console.error('Failed to parse stored books', e);

@@ -14,6 +14,7 @@ import {
   Zap
 } from 'lucide-react';
 import { Teacher, TeacherFile } from '../types';
+import { extractTextFromPdf } from '../utils/pdfUtils';
 
 interface TeacherBrainProps {
   teacher: Teacher;
@@ -55,29 +56,40 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
         continue;
       }
 
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        try {
-          const result = event.target?.result as string;
-          const base64Data = result.split(',')[1];
-          if (base64Data) {
-            let mimeType = file.type;
-            if (!mimeType && file.name.endsWith('.md')) mimeType = 'text/markdown';
-            if (!mimeType && file.name.endsWith('.txt')) mimeType = 'text/plain';
-            if (!mimeType && file.name.endsWith('.epub')) mimeType = 'application/epub+zip';
-            
+      try {
+        let fileData = '';
+        let mimeType = file.type;
+
+        if (file.type === 'application/pdf') {
+            fileData = await extractTextFromPdf(file);
+        } else if (file.type === 'text/plain' || file.name.endsWith('.md') || file.name.endsWith('.txt')) {
+            fileData = await file.text();
+            mimeType = 'text/plain';
+        } else {
+            // Fallback to base64 for images/videos/others
+            const reader = new FileReader();
+            fileData = await new Promise<string>((resolve, reject) => {
+                reader.onload = (event) => {
+                    const result = event.target?.result as string;
+                    resolve(result.split(',')[1]);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        if (fileData) {
             onAddFile(teacher.id, {
               name: file.name,
               mimeType: mimeType || 'application/octet-stream',
-              data: base64Data,
+              data: fileData,
               type: 'file'
             });
-          }
-        } catch (error) {
-          console.error('Erro ao processar arquivo', error);
         }
-      };
-      reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Erro ao processar arquivo', error);
+        alert(`Erro ao processar o arquivo ${file.name}.`);
+      }
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };

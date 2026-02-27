@@ -142,6 +142,7 @@ export default function App() {
         author: 'Desconhecido',
         thumbnail,
         url: URL.createObjectURL(file),
+        file: file,
       });
       setReadingBook(newBook);
     } catch (error) {
@@ -608,27 +609,12 @@ export default function App() {
 
         <AnimatePresence>
           {readingBook && (
-            <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-xl flex flex-col">
-              <div className="p-6 flex items-center justify-between border-b border-white/10">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg overflow-hidden">
-                    <img src={readingBook.thumbnail} alt="" className="w-full h-full object-cover" />
-                  </div>
-                  <div>
-                    <h2 className="text-white font-bold text-sm">{readingBook.title}</h2>
-                    <p className="text-white/40 text-[10px] uppercase tracking-widest font-bold">{readingBook.author}</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setReadingBook(null)}
-                  className="p-3 bg-white/10 text-white rounded-full hover:bg-white/20 transition-colors"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <PdfViewer url={readingBook.url} />
-              </div>
+            <div className="fixed inset-0 z-[60] bg-bg-main">
+              <PdfViewer 
+                url={readingBook.url} 
+                title={readingBook.title}
+                onClose={() => setReadingBook(null)}
+              />
             </div>
           )}
         </AnimatePresence>
