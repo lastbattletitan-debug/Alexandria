@@ -209,6 +209,10 @@ export default function App() {
   };
 
   const renderContent = () => {
+    const gridStyle = {
+      gridTemplateColumns: `repeat(auto-fill, minmax(${240 * currentZoom}px, 1fr))`
+    };
+
     if (activeTab === 'biblioteca') {
       if (viewMode === 'categories') {
         const allCategories = Array.from(new Set(books.flatMap(b => b.categories || [])));
@@ -228,7 +232,8 @@ export default function App() {
                     </span>
                   </h2>
                   <div 
-                    className="grid gap-6 origin-top-left transition-all duration-300 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                    className="grid gap-6 origin-top-left transition-all duration-300"
+                    style={gridStyle}
                   >
                     {categoryBooks.map(book => (
                       <BookCard 
@@ -255,7 +260,8 @@ export default function App() {
                   </span>
                 </h2>
                 <div 
-                  className="grid gap-6 origin-top-left transition-all duration-300 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                  className="grid gap-6 origin-top-left transition-all duration-300"
+                  style={gridStyle}
                 >
                   {booksWithNoCategory.map(book => (
                     <BookCard 
@@ -273,11 +279,14 @@ export default function App() {
             
             <div className="pt-8 border-t border-border-subtle">
                 <h3 className="text-sm font-bold text-text-muted uppercase tracking-widest mb-6">Adicionar</h3>
-                <div className="grid gap-6 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div 
+                  className="grid gap-6 origin-top-left transition-all duration-300"
+                  style={gridStyle}
+                >
                   <motion.div 
                     whileHover={{ y: -8 }}
                     onClick={() => fileInputRef.current?.click()}
-                    className="bg-bg-card border border-dashed border-white/10 rounded-[48px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
+                    className="bg-bg-card border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/5]"
                   >
                     <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                         {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
@@ -306,7 +315,8 @@ export default function App() {
 
       return (
         <div 
-          className="grid gap-6 origin-top-left transition-all duration-300 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          className="grid gap-6 origin-top-left transition-all duration-300"
+          style={gridStyle}
         >
           {books.map(book => (
             <BookCard 
@@ -322,7 +332,7 @@ export default function App() {
           <motion.div 
             whileHover={{ y: -8 }}
             onClick={() => fileInputRef.current?.click()}
-            className="bg-bg-card border border-dashed border-white/10 rounded-[48px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
+            className="bg-bg-card border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/5]"
           >
             <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
               {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
@@ -351,7 +361,8 @@ export default function App() {
 
     return (
       <div 
-        className={`grid gap-6 origin-top-left transition-transform duration-300 ${viewMode === 'grid' ? 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}
+        className={`grid gap-6 origin-top-left transition-transform duration-300 ${viewMode === 'list' ? 'grid-cols-1' : ''}`}
+        style={viewMode === 'grid' ? gridStyle : {}}
       >
         {displayTeachers.map((teacher) => (
           <TeacherCard
@@ -370,7 +381,7 @@ export default function App() {
           <motion.div 
             whileHover={{ y: -8 }}
             onClick={() => openAddModal(activeTab === 'mentores' ? 'Mentor' : 'Professor')}
-            className="bg-bg-card border border-dashed border-white/10 rounded-[48px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
+            className="bg-bg-card border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/5]"
           >
             <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
               <Plus className="text-text-primary" size={24} />
@@ -442,7 +453,7 @@ export default function App() {
         <div className="mt-auto flex flex-col gap-6 min-w-[224px]">
           <div className="px-6 py-4 bg-border-subtle rounded-2xl border border-border-subtle">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Zoom dos Textos</span>
+              <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Zoom dos Cards</span>
               <span className="text-[9px] font-bold text-text-primary bg-border-strong px-2 py-0.5 rounded">{Math.round(currentZoom * 100)}%</span>
             </div>
             <input 
