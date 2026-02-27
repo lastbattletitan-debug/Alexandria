@@ -76,6 +76,7 @@ export function PdfViewer({
   const [selection, setSelection] = useState<string | null>(null);
   const [selectionPosition, setSelectionPosition] = useState<{top: number, left: number} | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isBottomControlsVisible, setIsBottomControlsVisible] = useState(false);
 
   useEffect(() => {
     setPageNumber(1);
@@ -86,6 +87,30 @@ export function PdfViewer({
     setSearchQuery('');
     setPdfText([]);
   }, [url]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only navigate if not typing in an input or textarea
+      if (
+        document.activeElement?.tagName === 'INPUT' || 
+        document.activeElement?.tagName === 'TEXTAREA'
+      ) {
+        return;
+      }
+
+      if (viewMode === 'single') {
+        if (e.key === 'ArrowRight') {
+          changePage(1);
+        } else if (e.key === 'ArrowLeft') {
+          changePage(-1);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [numPages, viewMode]); // Re-bind if numPages or viewMode changes
 
   // Handle text selection
   useEffect(() => {
@@ -659,6 +684,46 @@ export function PdfViewer({
                     )}
                 </Document>
             </div>
+        )}
+
+        {/* Floating Bottom Page Controls */}
+        {viewMode === 'single' && !loading && !error && (
+          <div 
+            className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40 transition-all duration-300"
+            style={{ 
+              opacity: isBottomControlsVisible ? 1 : 0,
+              transform: `translateX(-50%) translateY(${isBottomControlsVisible ? '0' : '10px'})`
+            }}
+            onMouseEnter={() => setIsBottomControlsVisible(true)}
+            onMouseLeave={() => setIsBottomControlsVisible(false)}
+          >
+            {/* Trigger area */}
+            <div className="absolute -top-12 left-0 right-0 h-12" />
+            
+            <div className="flex items-center gap-1 bg-black/90 backdrop-blur-xl border border-white/10 rounded-xl px-2 py-1 shadow-2xl">
+              <button
+                onClick={() => changePage(-1)}
+                disabled={pageNumber <= 1}
+                className="p-1.5 hover:bg-white/10 rounded-lg text-white/40 hover:text-white disabled:opacity-10 transition-colors"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              
+              <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/5">
+                <span className="text-[11px] font-bold text-white tracking-tight">{pageNumber}</span>
+                <span className="text-white/20 text-[10px]">/</span>
+                <span className="text-white/40 text-[11px] font-medium">{numPages || '--'}</span>
+              </div>
+
+              <button
+                onClick={() => changePage(1)}
+                disabled={!numPages || pageNumber >= numPages}
+                className="p-1.5 hover:bg-white/10 rounded-lg text-white/40 hover:text-white disabled:opacity-10 transition-colors"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
