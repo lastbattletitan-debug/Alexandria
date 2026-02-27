@@ -62,6 +62,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const response = await groq.chat.completions.create({
           model: modelName,
           messages: messages,
+          temperature: 0.9,
+          max_tokens: 8192,
+          top_p: 0.95,
+          stream: false,
         });
 
         // If successful, return immediately

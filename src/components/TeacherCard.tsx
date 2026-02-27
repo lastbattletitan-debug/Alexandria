@@ -51,18 +51,18 @@ export function TeacherCard({
         isList ? 'right-6 top-1/2 -translate-y-1/2 flex-row' : 'top-6 right-6 flex-col translate-x-4 group-hover:translate-x-0'
       }`}>
         <button
-          onClick={(e) => { e.stopPropagation(); onOpenTopics(e); }}
-          className="p-3 bg-bg-card/80 hover:bg-bg-card backdrop-blur-xl rounded-2xl text-text-primary border border-border-strong transition-all shadow-xl"
-          title="Tópicos de Estudo"
-        >
-          <BookOpen size={16} />
-        </button>
-        <button
           onClick={(e) => { e.stopPropagation(); onOpenBrain(e); }}
           className="p-3 bg-text-primary text-bg-card backdrop-blur-xl rounded-2xl border border-border-strong transition-all hover:scale-110 shadow-xl"
           title="Cérebro do Professor"
         >
           <Brain size={16} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onOpenTopics(e); }}
+          className="p-3 bg-bg-card/80 hover:bg-bg-card backdrop-blur-xl rounded-2xl text-text-primary border border-border-strong transition-all shadow-xl"
+          title="Tópicos de Estudo"
+        >
+          <BookOpen size={16} />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onEdit(e); }}

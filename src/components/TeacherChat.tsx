@@ -115,112 +115,120 @@ export function TeacherChat({
 
   return (
     <div className="flex flex-col h-full bg-bg-main">
-      {/* Header */}
-      <header className="bg-bg-sidebar border-b border-border-subtle px-8 py-4 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-6">
-          <button
-            onClick={onBack}
-            className="p-3 -ml-2 text-text-muted hover:text-text-primary hover:bg-border-subtle rounded-2xl transition-all"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div className="flex items-center gap-4">
-            {currentTopic ? (
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
-                <Bookmark size={24} />
-              </div>
-            ) : (
-              <img
-                src={teacher.imageUrl}
-                alt={teacher.name}
-                className="w-12 h-12 rounded-2xl object-cover border border-border-strong grayscale"
-                referrerPolicy="no-referrer"
-              />
-            )}
-            <div>
-              <h2 className="font-bold text-text-primary leading-tight">
-                {currentTopic ? currentTopic.name : teacher.name}
-              </h2>
-              <div className="relative">
-                <button
-                  onClick={() => setIsTopicDropdownOpen(prev => !prev)}
-                  className="flex items-center gap-1 text-[10px] font-bold text-text-muted uppercase tracking-widest mt-0.5 hover:text-text-primary transition-colors"
-                  title="Selecionar Tópico"
-                >
-                  {selectedChatTopicId ? teacher.topics?.find(t => t.id === selectedChatTopicId)?.name : (currentTopic ? `Tópico de ${teacher.name}` : teacher.role)}
-                  <ChevronDown size={12} className={`transition-transform ${isTopicDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-                <AnimatePresence>
-                  {isTopicDropdownOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute left-0 top-full mt-2 w-56 bg-bg-card border border-border-strong rounded-2xl shadow-2xl z-20 overflow-hidden"
-                    >
-                      <div className="p-2">
-                        <button
-                          onClick={() => { setSelectedChatTopicId(null); setIsTopicDropdownOpen(false); }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${selectedChatTopicId === null ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
-                        >
-                          <BookOpen size={14} /> Chat Geral
-                        </button>
-                        {teacher.topics?.map(topic => (
+      {/* Header Hover Area */}
+      <div className="relative group/header">
+        <motion.header 
+          initial={{ opacity: 0, y: -20 }}
+          whileHover={{ opacity: 1, y: 0 }}
+          animate={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.3 }}
+          className="bg-bg-sidebar border-b border-border-subtle px-8 py-4 flex items-center justify-between sticky top-0 z-20 hover:bg-bg-sidebar/95 backdrop-blur-sm group-hover/header:opacity-100 group-hover/header:translate-y-0"
+        >
+          <div className="flex items-center gap-6">
+            <button
+              onClick={onBack}
+              className="p-3 -ml-2 text-text-muted hover:text-text-primary hover:bg-border-subtle rounded-2xl transition-all"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div className="flex items-center gap-4">
+              {currentTopic ? (
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
+                  <Bookmark size={24} />
+                </div>
+              ) : (
+                <img
+                  src={teacher.imageUrl}
+                  alt={teacher.name}
+                  className="w-12 h-12 rounded-2xl object-cover border border-border-strong grayscale"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+              <div>
+                <h2 className="font-bold text-text-primary leading-tight">
+                  {currentTopic ? currentTopic.name : teacher.name}
+                </h2>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsTopicDropdownOpen(prev => !prev)}
+                    className="flex items-center gap-1 text-[10px] font-bold text-text-muted uppercase tracking-widest mt-0.5 hover:text-text-primary transition-colors"
+                    title="Selecionar Tópico"
+                  >
+                    {selectedChatTopicId ? teacher.topics?.find(t => t.id === selectedChatTopicId)?.name : (currentTopic ? `Tópico de ${teacher.name}` : teacher.role)}
+                    <ChevronDown size={12} className={`transition-transform ${isTopicDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  <AnimatePresence>
+                    {isTopicDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute left-0 top-full mt-2 w-56 bg-bg-card border border-border-strong rounded-2xl shadow-2xl z-20 overflow-hidden"
+                      >
+                        <div className="p-2">
                           <button
-                            key={topic.id}
-                            onClick={() => { setSelectedChatTopicId(topic.id); setIsTopicDropdownOpen(false); }}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${selectedChatTopicId === topic.id ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
+                            onClick={() => { setSelectedChatTopicId(null); setIsTopicDropdownOpen(false); }}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${selectedChatTopicId === null ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
                           >
-                            <Bookmark size={14} /> {topic.name}
+                            <BookOpen size={14} /> Chat Geral
                           </button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                          {teacher.topics?.map(topic => (
+                            <button
+                              key={topic.id}
+                              onClick={() => { setSelectedChatTopicId(topic.id); setIsTopicDropdownOpen(false); }}
+                              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${selectedChatTopicId === topic.id ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
+                            >
+                              <Bookmark size={14} /> {topic.name}
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          {!currentTopic && (
+          
+          <div className="flex items-center gap-3">
+            {!currentTopic && (
+              <button
+                onClick={onOpenTopics}
+                className="flex items-center gap-2 text-text-muted hover:text-text-primary hover:bg-border-subtle px-4 py-2.5 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all"
+                title="Meus Tópicos"
+              >
+                <Bookmark size={16} />
+                <span className="inline">Meus Tópicos</span>
+              </button>
+            )}
             <button
-              onClick={onOpenTopics}
-              className="flex items-center gap-2 text-text-muted hover:text-text-primary hover:bg-border-subtle px-4 py-2.5 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all"
-              title="Meus Tópicos"
+              onClick={handleClearChat}
+              className="flex items-center gap-2 text-text-muted hover:text-red-400 hover:bg-red-400/5 px-4 py-2.5 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all"
+              title="Limpar Chat"
             >
-              <Bookmark size={16} />
-              <span className="inline">Meus Tópicos</span>
+              <Trash2 size={16} />
+              <span className="inline">Limpar Chat</span>
             </button>
-          )}
-          <button
-            onClick={handleClearChat}
-            className="flex items-center gap-2 text-text-muted hover:text-red-400 hover:bg-red-400/5 px-4 py-2.5 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all"
-            title="Limpar Chat"
-          >
-            <Trash2 size={16} />
-            <span className="inline">Limpar Chat</span>
-          </button>
-          <button
-            onClick={handleSummary}
-            disabled={isSummarizing || teacher.files.length === 0}
-            className="flex items-center gap-2 bg-text-primary text-bg-main px-6 py-2.5 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSummarizing ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
-            <span className="inline">Gerar Sumário</span>
-          </button>
+            <button
+              onClick={handleSummary}
+              disabled={isSummarizing || teacher.files.length === 0}
+              className="flex items-center gap-2 bg-text-primary text-bg-main px-6 py-2.5 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSummarizing ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
+              <span className="inline">Gerar Sumário</span>
+            </button>
 
 
-          <button
-            onClick={onOpenBrain}
-            className="p-3 bg-text-primary text-bg-main rounded-2xl hover:scale-110 transition-all shadow-lg"
-            title="Cérebro do Professor"
-          >
-            <Brain size={16} />
-          </button>
-        </div>
-      </header>
+            <button
+              onClick={onOpenBrain}
+              className="p-3 bg-text-primary text-bg-main rounded-2xl hover:scale-110 transition-all shadow-lg"
+              title="Cérebro do Professor"
+            >
+              <Brain size={16} />
+            </button>
+          </div>
+        </motion.header>
+      </div>
 
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-8 space-y-8">
@@ -282,11 +290,17 @@ export function TeacherChat({
       </div>
 
       {/* Input Area */}
-      <div className="bg-bg-main border-t border-border-subtle p-8 shrink-0">
-        <form onSubmit={handleSend} className="max-w-4xl mx-auto relative flex flex-col gap-4">
+      <div className="bg-bg-main p-8 shrink-0">
+        <div className="max-w-4xl mx-auto relative flex flex-col gap-4 group/input">
           {/* Selective Source Selector */}
           {teacher.files.length > 0 && (
-            <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-none">
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 0, y: 5 }}
+              whileHover={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-none bg-bg-main/80 backdrop-blur-sm py-2 px-4 rounded-2xl border border-transparent hover:border-border-subtle transition-all group-hover/input:opacity-100 group-hover/input:translate-y-0"
+            >
               <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest whitespace-nowrap">Falar sobre:</span>
               <button
                 type="button"
@@ -314,10 +328,10 @@ export function TeacherChat({
                   {file.name}
                 </button>
               ))}
-            </div>
+            </motion.div>
           )}
 
-          <div className="relative group">
+          <form onSubmit={handleSend} className="relative group/textarea">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -343,8 +357,8 @@ export function TeacherChat({
             >
               <Send size={20} />
             </button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
 
       {/* Clear Chat Modal */}

@@ -154,25 +154,6 @@ export default function App() {
     if (activeTab === 'biblioteca') {
       return (
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          <div 
-            onClick={() => fileInputRef.current?.click()}
-            className="bg-bg-card border border-dashed border-white/10 rounded-[48px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
-          >
-            <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-              {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
-            </div>
-            <div className="text-center">
-              <p className="text-[11px] font-bold text-text-muted uppercase tracking-[0.2em]">Novo Livro</p>
-            </div>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleBookUpload} 
-              accept=".pdf" 
-              className="hidden" 
-            />
-          </div>
-
           {books.map(book => (
             <motion.div
               key={book.id}
@@ -208,6 +189,28 @@ export default function App() {
               </div>
             </motion.div>
           ))}
+
+          <motion.div 
+            layout
+            style={{ scale: currentZoom }}
+            whileHover={{ y: -8 }}
+            onClick={() => fileInputRef.current?.click()}
+            className="bg-bg-card border border-dashed border-white/10 rounded-[48px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
+          >
+            <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+              {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
+            </div>
+            <div className="text-center">
+              <p className="text-[11px] font-bold text-text-muted uppercase tracking-[0.2em]">Novo Livro</p>
+            </div>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleBookUpload} 
+              accept=".pdf" 
+              className="hidden" 
+            />
+          </motion.div>
         </div>
       );
     }
@@ -216,21 +219,6 @@ export default function App() {
 
     return (
       <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
-        {viewMode === 'grid' && (
-          <div 
-            onClick={() => openAddModal(activeTab === 'mentores' ? 'Mentor' : 'Professor')}
-            className="bg-bg-card border border-dashed border-white/10 rounded-[48px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
-          >
-            <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Plus className="text-text-primary" size={24} />
-            </div>
-            <div className="text-center">
-              <p className="text-[11px] font-bold text-text-muted uppercase tracking-[0.2em]">
-                {activeTab === 'mentores' ? 'Novo Mentor' : 'Novo Professor'}
-              </p>
-            </div>
-          </div>
-        )}
         {displayTeachers.map((teacher) => (
           <TeacherCard
             key={teacher.id}
@@ -244,6 +232,24 @@ export default function App() {
             onOpenTopics={() => setTopicsTeacherId(teacher.id)}
           />
         ))}
+        {viewMode === 'grid' && (
+          <motion.div 
+            layout
+            style={{ scale: currentZoom }}
+            whileHover={{ y: -8 }}
+            onClick={() => openAddModal(activeTab === 'mentores' ? 'Mentor' : 'Professor')}
+            className="bg-bg-card border border-dashed border-white/10 rounded-[48px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/4]"
+          >
+            <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Plus className="text-text-primary" size={24} />
+            </div>
+            <div className="text-center">
+              <p className="text-[11px] font-bold text-text-muted uppercase tracking-[0.2em]">
+                {activeTab === 'mentores' ? 'Novo Mentor' : 'Novo Professor'}
+              </p>
+            </div>
+          </motion.div>
+        )}
       </div>
     );
   };
