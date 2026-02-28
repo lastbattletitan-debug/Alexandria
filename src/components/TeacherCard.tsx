@@ -24,6 +24,7 @@ export function TeacherCard({
   zoom = 1
 }: TeacherCardProps) {
   const isList = viewMode === 'list';
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
 
   return (
     <motion.div
@@ -82,8 +83,8 @@ export function TeacherCard({
       </div>
 
       {/* Content */}
-      <div className={`relative z-20 flex flex-col items-start gap-2 lg:gap-3 ${
-        isList ? 'flex-1 justify-center px-4 lg:px-8' : 'mt-auto p-4 lg:p-8'
+      <div className={`relative z-20 flex flex-col items-start gap-1.5 lg:gap-3 ${
+        isList ? 'flex-1 justify-center px-4 lg:px-8' : 'mt-auto p-3 lg:p-8'
       }`}>
         <span 
           className="font-bold uppercase tracking-[0.25em] bg-bg-card/80 backdrop-blur-md text-text-primary px-2 lg:px-3 py-1 lg:py-1.5 rounded-md lg:rounded-lg border border-border-strong shadow-sm"
@@ -95,13 +96,13 @@ export function TeacherCard({
         <div className="mt-0.5 lg:mt-1">
           <h3 
             className="text-text-primary font-bold leading-tight tracking-tight drop-shadow-sm line-clamp-1"
-            style={{ fontSize: `${(isList ? 16 : 24) * zoom}px` }}
+            style={{ fontSize: `${(isList ? 16 : (isMobile ? 16 : 24)) * zoom}px` }}
           >
             {teacher.name}
           </h3>
           <p 
             className="text-text-muted font-bold uppercase tracking-[0.2em] mt-1 lg:mt-1.5"
-            style={{ fontSize: `${(isList ? 8 : 10) * zoom}px` }}
+            style={{ fontSize: `${(isList ? 8 : (isMobile ? 8 : 10)) * zoom}px` }}
           >
             {teacher.role}
           </p>

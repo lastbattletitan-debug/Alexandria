@@ -82,7 +82,11 @@ export function PdfViewer({
   useEffect(() => {
     const updateWidth = () => {
       if (containerRef.current) {
-        setContainerWidth(containerRef.current.clientWidth - 32); // 32px padding
+        // Limit the maximum width to a reasonable reading size (e.g., 800px)
+        // or the container width minus padding, whichever is smaller.
+        const maxWidth = 800;
+        const availableWidth = containerRef.current.clientWidth - 32; // 32px padding
+        setContainerWidth(Math.min(maxWidth, availableWidth));
       }
     };
     updateWidth();

@@ -1,15 +1,20 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Upload, Image as ImageIcon, LogIn } from 'lucide-react';
+import { X, Upload, Image as ImageIcon, LogIn, BookOpen, CheckCircle2, XCircle, Users, GraduationCap } from 'lucide-react';
 
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   userName: string;
   userImage: string;
-  userPlan: string;
   onUpdateProfile: (name: string, image: string) => void;
-  onCheckPlan: () => Promise<void>;
+  stats: {
+    booksCompleted: number;
+    booksDiscarded: number;
+    booksReading: number;
+    teachersCount: number;
+    mentorsCount: number;
+  };
 }
 
 export function ProfileModal({ 
@@ -17,9 +22,8 @@ export function ProfileModal({
   onClose, 
   userName,
   userImage,
-  userPlan,
   onUpdateProfile,
-  onCheckPlan
+  stats
 }: ProfileModalProps) {
   const [name, setName] = useState(userName);
   const [imageUrl, setImageUrl] = useState(userImage);
@@ -125,16 +129,45 @@ export function ProfileModal({
                 <p className="text-[10px] lg:text-xs text-text-muted text-center">Login com Google temporariamente desativado.</p>
               </div>
 
-              <div className="border-t border-border-subtle pt-4 lg:pt-6 space-y-3 lg:space-y-4">
-                 <div className="text-center">
-                    <p className="text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Seu Plano Gemini</p>
-                    <p className="font-mono text-base lg:text-lg text-text-primary bg-border-subtle px-4 py-2 rounded-lg inline-block">{userPlan}</p>
+              <div className="border-t border-border-subtle pt-4 lg:pt-6">
+                <p className="text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-4">Estatísticas</p>
+                <div className="grid grid-cols-2 gap-3 lg:gap-4">
+                  <div className="bg-bg-main border border-border-subtle rounded-xl p-3 lg:p-4 flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-text-muted">
+                      <BookOpen className="w-4 h-4" />
+                      <span className="text-[10px] lg:text-xs font-bold uppercase tracking-wider">Lendo Agora</span>
+                    </div>
+                    <span className="text-xl lg:text-2xl font-bold text-text-primary">{stats.booksReading}</span>
+                  </div>
+                  <div className="bg-bg-main border border-border-subtle rounded-xl p-3 lg:p-4 flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-text-muted">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span className="text-[10px] lg:text-xs font-bold uppercase tracking-wider">Concluídos</span>
+                    </div>
+                    <span className="text-xl lg:text-2xl font-bold text-text-primary">{stats.booksCompleted}</span>
+                  </div>
+                  <div className="bg-bg-main border border-border-subtle rounded-xl p-3 lg:p-4 flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-text-muted">
+                      <XCircle className="w-4 h-4" />
+                      <span className="text-[10px] lg:text-xs font-bold uppercase tracking-wider">Descartados</span>
+                    </div>
+                    <span className="text-xl lg:text-2xl font-bold text-text-primary">{stats.booksDiscarded}</span>
+                  </div>
+                  <div className="bg-bg-main border border-border-subtle rounded-xl p-3 lg:p-4 flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-text-muted">
+                      <GraduationCap className="w-4 h-4" />
+                      <span className="text-[10px] lg:text-xs font-bold uppercase tracking-wider">Professores</span>
+                    </div>
+                    <span className="text-xl lg:text-2xl font-bold text-text-primary">{stats.teachersCount}</span>
+                  </div>
+                  <div className="bg-bg-main border border-border-subtle rounded-xl p-3 lg:p-4 flex flex-col gap-2 col-span-2">
+                    <div className="flex items-center gap-2 text-text-muted">
+                      <Users className="w-4 h-4" />
+                      <span className="text-[10px] lg:text-xs font-bold uppercase tracking-wider">Mentores</span>
+                    </div>
+                    <span className="text-xl lg:text-2xl font-bold text-text-primary">{stats.mentorsCount}</span>
+                  </div>
                 </div>
-                <button 
-                  onClick={async () => await onCheckPlan()}
-                  className="w-full bg-border-strong text-text-primary font-bold text-[8px] lg:text-[10px] uppercase tracking-widest py-3 lg:py-4 px-4 rounded-xl hover:opacity-90 transition-all">
-                  Verificar Plano
-                </button>
               </div>
             </div>
           </motion.div>

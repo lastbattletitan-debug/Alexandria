@@ -100,13 +100,33 @@ export default function App() {
     localStorage.setItem('alexandria-zoom-levels', JSON.stringify(zoomLevels));
   }, [zoomLevels]);
 
-  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [defaultRole, setDefaultRole] = useState<'Professor' | 'Mentor' | ''>('');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [userName, setUserName] = useState('Seu nome');
-  const [userImage, setUserImage] = useState('');
-  const [userPlan, setUserPlan] = useState('Desconhecido');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 1024);
+  const [userName, setUserName] = useState(() => localStorage.getItem('userName') || 'Seu nome');
+  const [userImage, setUserImage] = useState(() => localStorage.getItem('userImage') || '');
+  const [userPlan, setUserPlan] = useState(() => localStorage.getItem('userPlan') || 'Desconhecido');
+  const [logoError, setLogoError] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('userName', userName);
+  }, [userName]);
+
+  useEffect(() => {
+    localStorage.setItem('userImage', userImage);
+  }, [userImage]);
+
+  useEffect(() => {
+    localStorage.setItem('userPlan', userPlan);
+  }, [userPlan]);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // DND Sensors
   const sensors = useSensors(
@@ -304,7 +324,7 @@ export default function App() {
 
   const renderContent = () => {
     const gridStyle = {
-      gridTemplateColumns: `repeat(auto-fill, minmax(${240 * currentZoom}px, 1fr))`
+      gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 140 * currentZoom : 240 * currentZoom}px, 1fr))`
     };
 
     if (activeTab === 'biblioteca') {
@@ -327,7 +347,7 @@ export default function App() {
                     </span>
                   </h2>
                   <div 
-                    className="grid gap-6 origin-top-left transition-all duration-300"
+                    className="grid gap-3 lg:gap-6 origin-top-left transition-all duration-300"
                     style={gridStyle}
                   >
                     {statusBooks.map(book => (
@@ -356,7 +376,7 @@ export default function App() {
                   </span>
                 </h2>
                 <div 
-                  className="grid gap-6 origin-top-left transition-all duration-300"
+                  className="grid gap-3 lg:gap-6 origin-top-left transition-all duration-300"
                   style={gridStyle}
                 >
                   {booksWithNoStatus.map(book => (
@@ -377,21 +397,21 @@ export default function App() {
             <div className="pt-8 border-t border-border-subtle">
                 <h3 className="text-sm font-bold text-text-muted uppercase tracking-widest mb-6">Adicionar</h3>
                 <div 
-                  className="grid gap-6 origin-top-left transition-all duration-300"
+                  className="grid gap-3 lg:gap-6 origin-top-left transition-all duration-300"
                   style={gridStyle}
                 >
                   <motion.div 
                     whileHover={{ y: -8 }}
                     onClick={() => fileInputRef.current?.click()}
-                    className="bg-bg-card border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/5]"
+                    className={`bg-bg-card border border-dashed border-white/10 rounded-[20px] lg:rounded-[32px] flex items-center justify-center cursor-pointer hover:bg-white/[0.02] transition-all group ${isMobile ? 'col-span-2 flex-row p-4 gap-4' : 'flex-col p-8 aspect-[3/5] gap-6'}`}
                   >
-                    <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                        {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
+                    <div className="w-10 h-10 lg:w-14 lg:h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                        {isUploading ? <Loader2 className="animate-spin text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" /> : <Plus className="text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />}
                     </div>
                     <div className="text-center">
                         <p 
-                          className="font-bold text-text-muted uppercase tracking-[0.2em]"
-                          style={{ fontSize: `${11 * currentZoom}px` }}
+                          className="font-bold text-text-muted uppercase tracking-[0.1em] lg:tracking-[0.2em] text-[10px] lg:text-[11px]"
+                          style={!isMobile ? { fontSize: `${11 * currentZoom}px` } : {}}
                         >
                           Novo Livro
                         </p>
@@ -434,7 +454,7 @@ export default function App() {
                       strategy={rectSortingStrategy}
                     >
                       <div 
-                        className="grid gap-6 origin-top-left transition-all duration-300"
+                        className="grid gap-3 lg:gap-6 origin-top-left transition-all duration-300"
                         style={gridStyle}
                       >
                         {categoryBooks.map(book => (
@@ -468,7 +488,7 @@ export default function App() {
                     strategy={rectSortingStrategy}
                   >
                     <div 
-                      className="grid gap-6 origin-top-left transition-all duration-300"
+                      className="grid gap-3 lg:gap-6 origin-top-left transition-all duration-300"
                       style={gridStyle}
                     >
                       {processedBooks.filter(b => !b.categories || b.categories.length === 0).map(book => (
@@ -490,21 +510,21 @@ export default function App() {
               <div className="pt-8 border-t border-border-subtle">
                   <h3 className="text-sm font-bold text-text-muted uppercase tracking-widest mb-6">Adicionar</h3>
                   <div 
-                    className="grid gap-6 origin-top-left transition-all duration-300"
+                    className="grid gap-3 lg:gap-6 origin-top-left transition-all duration-300"
                     style={gridStyle}
                   >
                     <motion.div 
                       whileHover={{ y: -8 }}
                       onClick={() => fileInputRef.current?.click()}
-                      className="bg-bg-card border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/5]"
+                      className={`bg-bg-card border border-dashed border-white/10 rounded-[20px] lg:rounded-[32px] flex items-center justify-center cursor-pointer hover:bg-white/[0.02] transition-all group ${isMobile ? 'col-span-2 flex-row p-4 gap-4' : 'flex-col p-8 aspect-[3/5] gap-6'}`}
                     >
-                      <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                          {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
+                      <div className="w-10 h-10 lg:w-14 lg:h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                          {isUploading ? <Loader2 className="animate-spin text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" /> : <Plus className="text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />}
                       </div>
                       <div className="text-center">
                           <p 
-                            className="font-bold text-text-muted uppercase tracking-[0.2em]"
-                            style={{ fontSize: `${11 * currentZoom}px` }}
+                            className="font-bold text-text-muted uppercase tracking-[0.1em] lg:tracking-[0.2em] text-[10px] lg:text-[11px]"
+                            style={!isMobile ? { fontSize: `${11 * currentZoom}px` } : {}}
                           >
                             Novo Livro
                           </p>
@@ -526,7 +546,7 @@ export default function App() {
               strategy={viewMode === 'list' ? verticalListSortingStrategy : rectSortingStrategy}
             >
               <div 
-                className={`grid gap-6 origin-top-left transition-all duration-300 ${viewMode === 'list' ? 'grid-cols-1' : ''}`}
+                className={`grid gap-3 lg:gap-6 origin-top-left transition-all duration-300 ${viewMode === 'list' ? 'grid-cols-1' : ''}`}
                 style={viewMode === 'list' ? {} : gridStyle}
               >
                 {processedBooks.map(book => (
@@ -544,15 +564,15 @@ export default function App() {
                 <motion.div 
                   whileHover={{ y: -8 }}
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-bg-card border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/5]"
+                  className={`bg-bg-card border border-dashed border-white/10 rounded-[20px] lg:rounded-[32px] flex items-center justify-center cursor-pointer hover:bg-white/[0.02] transition-all group ${isMobile ? 'col-span-2 flex-row p-4 gap-4' : 'flex-col p-8 aspect-[3/5] gap-6'}`}
                 >
-                  <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                    {isUploading ? <Loader2 className="animate-spin text-text-primary" size={24} /> : <Plus className="text-text-primary" size={24} />}
+                  <div className="w-10 h-10 lg:w-14 lg:h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                    {isUploading ? <Loader2 className="animate-spin text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" /> : <Plus className="text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />}
                   </div>
                   <div className="text-center">
                     <p 
-                      className="font-bold text-text-muted uppercase tracking-[0.2em]"
-                      style={{ fontSize: `${11 * currentZoom}px` }}
+                      className="font-bold text-text-muted uppercase tracking-[0.1em] lg:tracking-[0.2em] text-[10px] lg:text-[11px]"
+                      style={!isMobile ? { fontSize: `${11 * currentZoom}px` } : {}}
                     >
                       Novo Livro
                     </p>
@@ -576,7 +596,7 @@ export default function App() {
 
     return (
       <div 
-        className={`grid gap-6 origin-top-left transition-transform duration-300 ${viewMode === 'list' ? 'grid-cols-1' : ''}`}
+        className={`grid gap-3 lg:gap-6 origin-top-left transition-transform duration-300 ${viewMode === 'list' ? 'grid-cols-1' : ''}`}
         style={viewMode === 'grid' ? gridStyle : {}}
       >
         {displayTeachers.map((teacher) => (
@@ -596,15 +616,15 @@ export default function App() {
           <motion.div 
             whileHover={{ y: -8 }}
             onClick={() => openAddModal(activeTab === 'mentores' ? 'Mentor' : 'Professor')}
-            className="bg-bg-card border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-6 cursor-pointer hover:bg-white/[0.02] transition-all group aspect-[3/5]"
+            className={`bg-bg-card border border-dashed border-white/10 rounded-[20px] lg:rounded-[32px] flex items-center justify-center cursor-pointer hover:bg-white/[0.02] transition-all group ${isMobile ? 'col-span-2 flex-row p-4 gap-4' : 'flex-col p-8 aspect-[3/5] gap-6'}`}
           >
-            <div className="w-14 h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Plus className="text-text-primary" size={24} />
+            <div className="w-10 h-10 lg:w-14 lg:h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Plus className="text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />
             </div>
             <div className="text-center">
               <p 
-                className="font-bold text-text-muted uppercase tracking-[0.2em]"
-                style={{ fontSize: `${11 * currentZoom}px` }}
+                className="font-bold text-text-muted uppercase tracking-[0.1em] lg:tracking-[0.2em] text-[10px] lg:text-[11px]"
+                style={!isMobile ? { fontSize: `${11 * currentZoom}px` } : {}}
               >
                 {activeTab === 'mentores' ? 'Novo Mentor' : 'Novo Professor'}
               </p>
@@ -617,80 +637,7 @@ export default function App() {
 
   return (
     <div className={`min-h-screen bg-bg-main font-sans text-text-primary flex relative overflow-hidden transition-colors duration-300`}>
-      {/* Sidebar Trigger Area */}
-      <div 
-        className="fixed left-0 top-0 bottom-0 w-4 z-50 cursor-pointer"
-        onMouseEnter={() => setIsSidebarHovered(true)}
-      />
-
-      {/* Sidebar */}
-      {/* Sidebar - Desktop */}
-      <motion.aside 
-        initial={false}
-        animate={{ 
-          width: isSidebarHovered ? 288 : 0,
-          opacity: isSidebarHovered ? 1 : 0,
-          x: isSidebarHovered ? 0 : -20
-        }}
-        onMouseLeave={() => setIsSidebarHovered(false)}
-        className="fixed left-0 top-0 bottom-0 bg-bg-sidebar border-r border-border-subtle hidden lg:flex flex-col p-8 z-40 shadow-2xl overflow-hidden"
-      >
-        <div className="flex items-center gap-3 mb-12 min-w-[224px]">
-          <div className="w-10 h-10 bg-text-primary rounded-xl flex items-center justify-center transition-colors">
-            <GraduationCap className="text-bg-main" size={24} />
-          </div>
-          <h1 className="text-xl font-bold tracking-tight text-text-primary">Alexandria</h1>
-        </div>
-
-        <nav className="flex-1 flex flex-col gap-2 min-w-[224px]">
-          <button 
-            onClick={() => setActiveTab('professores')}
-            className={`flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === 'professores' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
-          >
-            <LayoutGrid size={20} />
-            <span className="font-medium text-sm">Professores</span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('mentores')}
-            className={`flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === 'mentores' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
-          >
-            <Users size={20} />
-            <span className="font-medium text-sm">Mentores</span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('biblioteca')}
-            className={`flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${activeTab === 'biblioteca' ? 'bg-border-strong text-text-primary' : 'text-text-muted hover:text-text-primary hover:bg-border-subtle'}`}
-          >
-            <LibraryIcon size={20} />
-            <span className="font-medium text-sm">Biblioteca</span>
-          </button>
-        </nav>
-
-        <div className="mt-auto flex flex-col gap-6 min-w-[224px]">
-          <div className="px-6 py-4 bg-border-subtle rounded-2xl border border-border-subtle">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Zoom dos Cards</span>
-              <span className="text-[9px] font-bold text-text-primary bg-border-strong px-2 py-0.5 rounded">{Math.round(currentZoom * 100)}%</span>
-            </div>
-            <input 
-              type="range" 
-              min="0.3" 
-              max="1.5" 
-              step="0.1" 
-              value={currentZoom}
-              onChange={(e) => setZoom(parseFloat(e.target.value))}
-              className="w-full h-1 bg-border-strong rounded-lg appearance-none cursor-pointer accent-text-primary"
-            />
-          </div>
-
-          <button className="flex items-center gap-4 px-6 py-4 rounded-2xl text-text-muted hover:text-text-primary hover:bg-border-subtle transition-all">
-            <Settings size={20} />
-            <span className="font-medium text-sm">Configurações</span>
-          </button>
-        </div>
-      </motion.aside>
-
-      <main className={`flex-1 flex flex-col h-screen overflow-hidden transition-all duration-500 ${isSidebarHovered ? 'lg:pl-72' : 'pl-0'}`}>
+      <main className={`flex-1 flex flex-col h-screen overflow-hidden transition-all duration-500 pl-0`}>
         <AnimatePresence mode="wait">
           {brainTeacherId ? (
             <motion.div
@@ -774,27 +721,64 @@ export default function App() {
             >
               <header className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 lg:gap-8 mb-8 lg:mb-12 sticky top-0 bg-bg-main/80 backdrop-blur-md z-10 py-4">
                 <div className="flex-1 max-w-2xl relative group order-2 lg:order-1">
-                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-text-primary transition-colors" size={20} />
+                  <Search className="absolute left-4 lg:left-6 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-text-primary transition-colors w-[16px] h-[16px] lg:w-[20px] lg:h-[20px]" />
                   <input 
                     type="text" 
                     placeholder="Procure por professores, matérias ou aulas..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-bg-card border border-border-subtle rounded-2xl py-3 lg:py-4 pl-14 lg:pl-16 pr-6 text-sm focus:outline-none focus:border-border-strong focus:bg-border-subtle transition-all text-text-primary placeholder:text-text-muted"
+                    className="w-full bg-bg-card border border-border-subtle rounded-xl lg:rounded-2xl py-3 lg:py-4 pl-10 lg:pl-16 pr-4 lg:pr-6 text-xs lg:text-sm focus:outline-none focus:border-border-strong focus:bg-border-subtle transition-all text-text-primary placeholder:text-text-muted"
                   />
                 </div>
 
-                <div className="flex items-center justify-between lg:justify-end gap-4 lg:gap-6 order-1 lg:order-2">
-                  <div className="flex items-center gap-4">
+                <div className="flex items-center justify-end gap-4 lg:gap-6 order-1 lg:order-2 w-full lg:w-auto">
+                  <div className="flex items-center gap-2 lg:gap-4 ml-auto">
                     <button 
                       onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
                       className="p-2 text-text-muted hover:text-text-primary transition-all duration-300 active:scale-90"
                     >
-                      {theme === 'dark' ? <Sun size={24} /> : <Moon size={24} />}
+                      {theme === 'dark' ? <Sun className="w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" /> : <Moon className="w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />}
                     </button>
                     
+                    {/* Settings Dropdown */}
+                    <div className="relative">
+                      <button 
+                        onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                        className="p-2 text-text-muted hover:text-text-primary transition-all duration-300 active:scale-90"
+                      >
+                        <Settings className="w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />
+                      </button>
+                      <AnimatePresence>
+                        {isSettingsOpen && (
+                          <>
+                            <div className="fixed inset-0 z-30" onClick={() => setIsSettingsOpen(false)} />
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                              className="absolute right-0 mt-3 w-64 bg-bg-card border border-border-strong rounded-2xl shadow-2xl z-40 overflow-hidden p-4"
+                            >
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest">Zoom dos Cards</span>
+                                <span className="text-[9px] font-bold text-text-primary bg-border-strong px-2 py-0.5 rounded">{Math.round(currentZoom * 100)}%</span>
+                              </div>
+                              <input 
+                                type="range" 
+                                min="0.3" 
+                                max="1.5" 
+                                step="0.1" 
+                                value={currentZoom}
+                                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                                className="w-full h-1 bg-border-strong rounded-lg appearance-none cursor-pointer accent-text-primary"
+                              />
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                    
                     <div 
-                      className="flex items-center gap-4 lg:pl-6 lg:border-l border-border-strong cursor-pointer"
+                      className="flex items-center gap-3 lg:gap-4 pl-2 lg:pl-6 border-l border-border-strong cursor-pointer"
                       onClick={() => setIsProfileModalOpen(true)}
                     >
                       <div className="text-right hidden sm:block">
@@ -802,10 +786,10 @@ export default function App() {
                         <p className="text-[10px] text-text-muted uppercase tracking-widest font-bold">{userPlan === 'Pro' ? 'Membro Pro' : 'Membro Standard'}</p>
                       </div>
                       {userImage ? (
-                        <img src={userImage} alt="User" className="w-10 h-10 rounded-xl object-cover border border-border-strong" referrerPolicy="no-referrer" />
+                        <img src={userImage} alt="User" className="w-8 h-8 lg:w-10 lg:h-10 rounded-xl object-cover border border-border-strong" referrerPolicy="no-referrer" />
                       ) : (
-                        <div className="w-10 h-10 rounded-xl border border-border-strong bg-bg-card flex items-center justify-center text-text-muted">
-                          <User size={20} />
+                        <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-xl border border-border-strong bg-bg-card flex items-center justify-center text-text-muted">
+                          <User className="w-[16px] h-[16px] lg:w-[20px] lg:h-[20px]" />
                         </div>
                       )}
                     </div>
@@ -970,15 +954,16 @@ export default function App() {
           onClose={() => setIsProfileModalOpen(false)}
           userName={userName}
           userImage={userImage}
-          userPlan={userPlan}
           onUpdateProfile={(name, image) => {
             setUserName(name);
             setUserImage(image);
           }}
-          onCheckPlan={async () => {
-            const res = await fetch('/api/check-plan');
-            const data = await res.json();
-            setUserPlan(data.plan);
+          stats={{
+            booksCompleted: processedBooks.filter(b => b.status === 'Concluído').length,
+            booksDiscarded: processedBooks.filter(b => b.status === 'Descartado').length,
+            booksReading: processedBooks.filter(b => b.status === 'Lendo agora').length,
+            teachersCount: teachers.filter(t => t.role === 'Professor').length,
+            mentorsCount: teachers.filter(t => t.role === 'Mentor').length
           }}
         />
 
@@ -1041,13 +1026,6 @@ export default function App() {
             >
               <LibraryIcon size={20} className={activeTab === 'biblioteca' ? 'scale-110' : ''} />
               <span className="text-[9px] font-bold uppercase tracking-widest">Livros</span>
-            </button>
-            <button 
-              onClick={() => setIsProfileModalOpen(true)}
-              className="flex flex-col items-center gap-1 text-text-muted"
-            >
-              <User size={20} />
-              <span className="text-[9px] font-bold uppercase tracking-widest">Perfil</span>
             </button>
           </nav>
         )}

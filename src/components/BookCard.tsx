@@ -13,6 +13,7 @@ interface BookCardProps {
 
 export function BookCard({ book, onRead, onViewNotes, onDelete, viewMode = 'grid', zoom = 1 }: BookCardProps) {
   const isList = viewMode === 'list';
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
 
   return (
     <motion.div
@@ -66,11 +67,11 @@ export function BookCard({ book, onRead, onViewNotes, onDelete, viewMode = 'grid
       </div>
 
       {/* Info */}
-      <div className={`flex flex-col gap-1 lg:gap-2 ${isList ? 'flex-1 ml-4 lg:ml-6 text-left' : 'w-full flex-none text-center px-2 pb-2 mt-3 lg:mt-4'}`}>
+      <div className={`flex flex-col gap-1 lg:gap-2 ${isList ? 'flex-1 ml-4 lg:ml-6 text-left' : 'w-full flex-none text-center px-1 lg:px-2 pb-1 lg:pb-2 mt-2 lg:mt-4'}`}>
         <div className={isList ? 'flex items-center justify-between' : ''}>
           <h3 
             className="font-bold text-text-primary line-clamp-1" 
-            style={{ fontSize: `${(isList ? 14 : 14) * zoom}px` }}
+            style={{ fontSize: `${(isList ? 14 : (isMobile ? 12 : 14)) * zoom}px` }}
             title={book.title}
           >
             {book.title}
@@ -79,7 +80,7 @@ export function BookCard({ book, onRead, onViewNotes, onDelete, viewMode = 'grid
           {isList && (
             <p 
               className="font-bold text-text-muted whitespace-nowrap ml-2 lg:ml-4"
-              style={{ fontSize: `${(isList ? 8 : 10) * zoom}px` }}
+              style={{ fontSize: `${(isList ? 8 : (isMobile ? 8 : 10)) * zoom}px` }}
             >
                 {book.currentPage || 1} / {book.totalPages || '--'}
             </p>
@@ -93,7 +94,7 @@ export function BookCard({ book, onRead, onViewNotes, onDelete, viewMode = 'grid
               {[1, 2, 3, 4, 5].map((star) => (
                 <Star 
                   key={star}
-                  size={(isList ? 8 : 12) * zoom}
+                  size={(isList ? 8 : (isMobile ? 10 : 12)) * zoom}
                   className={star <= (book.rating || 0) ? "fill-yellow-400 text-yellow-400" : "text-border-strong"}
                 />
               ))}
@@ -112,7 +113,7 @@ export function BookCard({ book, onRead, onViewNotes, onDelete, viewMode = 'grid
         {!isList && (
           <p 
             className="font-bold text-text-muted"
-            style={{ fontSize: `${10 * zoom}px` }}
+            style={{ fontSize: `${(isMobile ? 8 : 10) * zoom}px` }}
           >
               {book.currentPage || 1} / {book.totalPages || '--'}
           </p>
