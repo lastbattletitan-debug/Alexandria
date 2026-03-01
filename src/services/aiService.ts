@@ -85,8 +85,30 @@ export async function chatWithTeacher(
     // Truncate history to last 10 messages to save tokens while maintaining context
     const truncatedHistory = history.slice(-10);
     
-    // We pass the history to the API now for better context handling in Groq
-    const prompt = teacher.systemInstruction;
+    let prompt = teacher.systemInstruction;
+
+    // Add file context
+    const filesToUse = selectedFileIds && selectedFileIds.length > 0 
+      ? teacher.files.filter(f => selectedFileIds.includes(f.id))
+      : teacher.files;
+
+    if (filesToUse.length > 0) {
+      const contextText = filesToUse
+        .filter(f => f.data && f.data.trim().length > 0)
+        .map(f => `--- CONTEÚDO DO ARQUIVO: ${f.name} ---\n${f.data}`)
+        .join('\n\n');
+        
+      if (contextText) {
+        // Limit context size to avoid payload too large errors.
+        // 128k tokens is roughly 500k characters. Let's limit to 300k characters to be safe.
+        const MAX_CONTEXT_LENGTH = 300000;
+        const truncatedContext = contextText.length > MAX_CONTEXT_LENGTH 
+          ? contextText.substring(0, MAX_CONTEXT_LENGTH) + "\n\n[... O restante do conteúdo foi truncado por ser muito longo ...]"
+          : contextText;
+
+        prompt += `\n\nVocê tem acesso aos seguintes documentos para basear suas respostas. Use-os como sua base de conhecimento principal. Responda de forma detalhada e completa. Se a resposta não estiver nos documentos, use seu conhecimento geral, mas dê preferência aos documentos fornecidos:\n\n${truncatedContext}`;
+      }
+    }
 
     return await callAiApiWithRetry(message, prompt, truncatedHistory);
   } catch (error) {

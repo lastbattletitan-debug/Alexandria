@@ -50,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const response = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: messages,
-      temperature: 0.9,
+      temperature: 0.7,
       max_tokens: 8192,
       top_p: 0.95,
       stream: false,
