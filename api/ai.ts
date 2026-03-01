@@ -30,15 +30,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       baseURL: "https://api.groq.com/openai/v1",
     });
 
-    // List of models to try in order of preference
-    const modelsToTry = [
-      'llama-3.3-70b-versatile',
-      'llama-3.2-90b-vision-preview', 
-      'mixtral-8x7b-32768'
-    ];
-
-    let lastError;
-
     // Construct messages for chat completion
     const messages: any[] = [];
     
@@ -56,36 +47,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       messages.push({ role: "user", content: text });
     }
 
-    // Try models sequentially until one works
-    for (const modelName of modelsToTry) {
-      try {
-        const response = await groq.chat.completions.create({
-          model: modelName,
-          messages: messages,
-          temperature: 0.9,
-          max_tokens: 8192,
-          top_p: 0.95,
-          stream: false,
-        });
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: messages,
+      temperature: 0.9,
+      max_tokens: 8192,
+      top_p: 0.95,
+      stream: false,
+    });
 
-        // If successful, return immediately
-        return res.status(200).json({ text: response.choices[0].message.content });
-      } catch (error: any) {
-        console.error(`Failed with model ${modelName}:`, error.message);
-        lastError = error;
-        
-        // If it's a content blocking error or invalid argument, don't retry other models
-        if (error.status === 400 || error.status === 403) {
-           break;
-        }
-      }
-    }
-
-    // If all models failed, throw the last error to be caught by the outer catch
-    throw lastError;
+    return res.status(200).json({ text: response.choices[0].message.content });
 
   } catch (error: any) {
-    console.error('All Groq models failed:', error);
+    console.error('Groq API error:', error);
     
     return res.status(500).json({ 
       error: 'Failed to process request with Groq',
