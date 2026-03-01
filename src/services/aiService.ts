@@ -1,6 +1,6 @@
 import { Teacher, ChatMessage, TeacherFile, Topic } from '../types';
 
-const CHUNK_SIZE = 80000; // Reduced chunk size for better reliability
+const CHUNK_SIZE = 20000; // Reduced chunk size for better reliability with Groq TPM limits
 
 function splitTextIntoChunks(text: string, chunkSize: number): string[] {
   const chunks: string[] = [];
@@ -56,11 +56,15 @@ async function callAiApiWithRetry(text: string, prompt: string, history?: ChatMe
       const isRateLimit = error.message === 'RATE_LIMIT_EXCEEDED' || 
                           error.message?.includes('429') || 
                           error.message?.includes('quota') ||
-                          error.message?.includes('rate_limit');
+                          error.message?.includes('rate_limit') ||
+                          error.message?.includes('Too Many Requests') ||
+                          error.message?.includes('TPM') ||
+                          error.message?.includes('RPM');
       
       if (isRateLimit) {
         if (attempt < retries - 1) {
-          const waitTime = 5000 * (attempt + 1); // Exponential backoff: 5s, 10s, 15s
+          // Groq TPM limits reset every minute. We need longer delays.
+          const waitTime = 15000 * (attempt + 1); // 15s, 30s, 45s
           console.warn(`Rate limit hit. Retrying in ${waitTime}ms...`);
           await delay(waitTime);
           continue;
@@ -106,7 +110,7 @@ export async function chatWithTeacher(
           ? contextText.substring(0, MAX_CONTEXT_LENGTH) + "\n\n[... O restante do conteúdo foi truncado por ser muito longo ...]"
           : contextText;
 
-        prompt += `\n\nVocê tem acesso aos seguintes documentos para basear suas respostas. Use-os como sua base de conhecimento principal. Responda de forma detalhada e completa. Se a resposta não estiver nos documentos, use seu conhecimento geral, mas dê preferência aos documentos fornecidos:\n\n${truncatedContext}`;
+        prompt += `\n\n=== INSTRUÇÕES DE ANÁLISE DE FONTES ===\nVocê tem acesso aos documentos abaixo para basear suas respostas. Siga estas diretrizes ESTRITAMENTE:\n1. Forneça respostas EXTENSAS, PROFUNDAS e EXTREMAMENTE DETALHADAS.\n2. Analise criticamente o conteúdo, fazendo conexões inteligentes e explicando o contexto, o "porquê" e o "como".\n3. Cite conceitos, exemplos ou trechos específicos dos documentos para embasar sua resposta.\n4. Estruture sua resposta de forma didática (use parágrafos bem desenvolvidos, tópicos se ajudar na clareza, e uma conclusão).\n5. Se a resposta não estiver nos documentos, use seu conhecimento geral, mas dê preferência absoluta aos documentos fornecidos.\n\n=== DOCUMENTOS DE REFERÊNCIA ===\n${truncatedContext}`;
       }
     }
 
@@ -136,8 +140,14 @@ export async function generateSummary(teacher: Teacher, selectedFiles?: TeacherF
       .map((f) => `--- ARQUIVO: ${f.name} ---\n${f.data}`)
       .join('\n\n');
 
+    // Limit the text to summarize to avoid massive API costs and rate limits
+    const MAX_SUMMARY_LENGTH = 100000;
+    const textToSummarize = fullText.length > MAX_SUMMARY_LENGTH 
+      ? fullText.substring(0, MAX_SUMMARY_LENGTH) + "\n\n[... O restante do documento foi omitido para o sumário ...]"
+      : fullText;
+
     // 2. Split into manageable chunks
-    const chunks = splitTextIntoChunks(fullText, CHUNK_SIZE);
+    const chunks = splitTextIntoChunks(textToSummarize, CHUNK_SIZE);
 
     // 3. Process chunks (Map phase)
     if (chunks.length === 1) {
@@ -158,7 +168,7 @@ export async function generateSummary(teacher: Teacher, selectedFiles?: TeacherF
         
         // Increased delay between chunks to avoid rate limits
         if (i < chunks.length - 1) {
-          await delay(2000); 
+          await delay(4000); 
         }
       } catch (err) {
         console.error(`Erro ao processar parte ${i + 1}:`, err);

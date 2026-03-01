@@ -61,7 +61,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     console.error('Groq API error:', error);
     
-    return res.status(500).json({ 
+    const statusCode = error.status || 500;
+    return res.status(statusCode).json({ 
       error: 'Failed to process request with Groq',
       details: error.message,
     });
