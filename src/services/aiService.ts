@@ -79,6 +79,39 @@ async function callAiApiWithRetry(text: string, prompt: string, history?: ChatMe
   throw new Error('Falha após múltiplas tentativas.');
 }
 
+// Helper for semantic search (keyword-based for client-side efficiency)
+function findRelevantChunks(text: string, query: string, maxChunks = 5, chunkSize = 2000): string {
+  if (!text || !query) return "";
+
+  const chunks = splitTextIntoChunks(text, chunkSize);
+  const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 3); // Filter small words
+
+  if (queryTerms.length === 0) return text.substring(0, 20000); // Fallback if query is too simple
+
+  const scoredChunks = chunks.map(chunk => {
+    const chunkLower = chunk.toLowerCase();
+    let score = 0;
+    queryTerms.forEach(term => {
+      // Simple frequency count
+      const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+      const count = (chunkLower.match(regex) || []).length;
+      score += count;
+    });
+    return { chunk, score };
+  });
+
+  // Sort by score descending
+  scoredChunks.sort((a, b) => b.score - a.score);
+
+  // Take top chunks
+  const topChunks = scoredChunks.slice(0, maxChunks).filter(c => c.score > 0);
+  
+  // If no relevant chunks found, return the beginning of text as fallback
+  if (topChunks.length === 0) return text.substring(0, 20000);
+
+  return topChunks.map(c => c.chunk).join('\n\n[...]\n\n');
+}
+
 export async function chatWithTeacher(
   teacher: Teacher,
   message: string,
@@ -98,20 +131,36 @@ export async function chatWithTeacher(
       : teacher.files;
 
     if (filesToUse.length > 0) {
-      const contextText = filesToUse
+      const fullContextText = filesToUse
         .filter(f => f.data && f.data.trim().length > 0)
         .map(f => `--- CONTEÚDO DO ARQUIVO: ${f.name} ---\n${f.data}`)
         .join('\n\n');
         
-      if (contextText) {
-        // Limit context size to avoid payload too large errors.
-        // 128k tokens is roughly 500k characters. Let's limit to 300k characters to be safe.
-        const MAX_CONTEXT_LENGTH = 300000;
-        const truncatedContext = contextText.length > MAX_CONTEXT_LENGTH 
-          ? contextText.substring(0, MAX_CONTEXT_LENGTH) + "\n\n[... O restante do conteúdo foi truncado por ser muito longo ...]"
-          : contextText;
+      if (fullContextText) {
+        // Check if user wants full detail
+        const isDetailRequest = /(detalhe|expli(?:que|ca) (?:tudo|detalhadamente)|aprofund(?:e|ar)|completo|integra|tudo sobre)/i.test(message);
+        
+        let finalContext = "";
 
-        prompt += `\n\n=== INSTRUÇÕES DE ANÁLISE DE FONTES ===\nVocê tem acesso aos documentos abaixo para basear suas respostas. Siga estas diretrizes ESTRITAMENTE:\n1. Forneça respostas EXTENSAS, PROFUNDAS e EXTREMAMENTE DETALHADAS.\n2. Analise criticamente o conteúdo, fazendo conexões inteligentes e explicando o contexto, o "porquê" e o "como".\n3. Cite conceitos, exemplos ou trechos específicos dos documentos para embasar sua resposta.\n4. Estruture sua resposta de forma didática (use parágrafos bem desenvolvidos, tópicos se ajudar na clareza, e uma conclusão).\n5. Se a resposta não estiver nos documentos, use seu conhecimento geral, mas dê preferência absoluta aos documentos fornecidos.\n\n=== DOCUMENTOS DE REFERÊNCIA ===\n${truncatedContext}`;
+        if (isDetailRequest) {
+           // User wants EVERYTHING. Send as much as possible (up to safe limit).
+           const MAX_CONTEXT_LENGTH = 200000;
+           finalContext = fullContextText.length > MAX_CONTEXT_LENGTH 
+            ? fullContextText.substring(0, MAX_CONTEXT_LENGTH) + "\n\n[... O restante do conteúdo foi truncado por ser muito longo ...]"
+            : fullContextText;
+           
+           prompt += `\n\n=== MODO DETALHADO ATIVADO ===\nO usuário solicitou uma explicação detalhada. Use o contexto abaixo para fornecer uma resposta completa, abrangente e profunda.`;
+
+        } else {
+           // Semantic Search Mode (NotebookLM style)
+           // Extract only relevant parts to save tokens and focus attention
+           const relevantText = findRelevantChunks(fullContextText, message, 8, 3000); // ~24k chars max
+           
+           finalContext = relevantText;
+           prompt += `\n\n=== MODO DE BUSCA SEMÂNTICA ===\nBaseie-se nos trechos abaixo, que foram selecionados por relevância à pergunta do usuário. Se a resposta não estiver clara nestes trechos, avise o usuário.`;
+        }
+
+        prompt += `\n\n=== INSTRUÇÕES DE ANÁLISE DE FONTES ===\nVocê tem acesso aos documentos abaixo para basear suas respostas. Siga estas diretrizes ESTRITAMENTE:\n1. Forneça respostas EXTENSAS, PROFUNDAS e EXTREMAMENTE DETALHADAS.\n2. Analise criticamente o conteúdo, fazendo conexões inteligentes e explicando o contexto, o "porquê" e o "como".\n3. Cite conceitos, exemplos ou trechos específicos dos documentos para embasar sua resposta.\n4. Estruture sua resposta de forma didática (use parágrafos bem desenvolvidos, tópicos se ajudar na clareza, e uma conclusão).\n5. Se a resposta não estiver nos documentos, use seu conhecimento geral, mas dê preferência absoluta aos documentos fornecidos.\n\n=== DOCUMENTOS DE REFERÊNCIA ===\n${finalContext}`;
       }
     }
 
