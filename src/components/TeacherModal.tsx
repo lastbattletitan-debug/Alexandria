@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Upload, Image as ImageIcon } from 'lucide-react';
+import { X, Upload, Image as ImageIcon, Sparkles, Loader2 } from 'lucide-react';
+import { analyzePersonalityLinks } from '../services/aiService';
 import { Teacher } from '../types';
 
 interface TeacherModalProps {
@@ -20,6 +21,7 @@ export function TeacherModal({ isOpen, onClose, onSave, initialData, defaultRole
   const [systemInstruction, setSystemInstruction] = useState('');
   const [personality, setPersonality] = useState('');
   const [personalitySources, setPersonalitySources] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -58,6 +60,24 @@ export function TeacherModal({ isOpen, onClose, onSave, initialData, defaultRole
       setImageUrl(event.target?.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleAnalyzePersonality = async () => {
+    if (!personalitySources.trim()) {
+      alert('Adicione pelo menos um link na caixa de Referências de Personalidade primeiro.');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const profile = await analyzePersonalityLinks(personalitySources);
+      setPersonality(profile);
+      alert('Personalidade extraída com sucesso! Verifique o campo de Personalidade.');
+    } catch (error: any) {
+      alert(error.message || 'Erro ao analisar os links.');
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -205,20 +225,40 @@ export function TeacherModal({ isOpen, onClose, onSave, initialData, defaultRole
 
                 <div>
                   <label className="block text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Personalidade (Estilo, Humor, Jeito)</label>
-                  <input
-                    type="text"
+                  <textarea
                     value={personality}
                     onChange={(e) => setPersonality(e.target.value)}
-                    placeholder="Ex: Engraçado, sarcástico, muito paciente..."
-                    className="w-full bg-bg-main border border-border-subtle px-4 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all placeholder:text-text-muted/50" />
+                    placeholder="Ex: Engraçado, sarcástico, muito paciente... Ou gere automaticamente com a IA usando os links abaixo."
+                    rows={4}
+                    className="w-full bg-bg-main border border-border-subtle px-4 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none placeholder:text-text-muted/50" />
                 </div>
 
                 <div>
-                  <label className="block text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">Referências de Personalidade (Links de Vídeos/Textos)</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest">Referências de Personalidade (Links de Vídeos/Textos)</label>
+                    <button
+                      type="button"
+                      onClick={handleAnalyzePersonality}
+                      disabled={isAnalyzing || !personalitySources.trim()}
+                      className="flex items-center gap-1.5 text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-emerald-500 hover:text-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isAnalyzing ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          Analisando...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3 h-3" />
+                          Extrair com IA
+                        </>
+                      )}
+                    </button>
+                  </div>
                   <textarea
                     value={personalitySources}
                     onChange={(e) => setPersonalitySources(e.target.value)}
-                    placeholder="Cole links de vídeos ou textos para o professor adaptar a personalidade..."
+                    placeholder="Cole links de vídeos do YouTube ou textos para a IA analisar e extrair a personalidade..."
                     rows={2}
                     className="w-full bg-bg-main border border-border-subtle px-4 py-3 lg:py-4 rounded-xl lg:rounded-2xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none placeholder:text-text-muted/50" />
                 </div>

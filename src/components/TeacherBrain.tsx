@@ -11,10 +11,14 @@ import {
   Trash2,
   Info,
   MessageSquare,
-  Zap
+  Zap,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { Teacher, TeacherFile } from '../types';
 import { extractTextFromPdf } from '../utils/pdfUtils';
+import { analyzePersonalityLinks } from '../services/aiService';
+import { processFile } from '../utils/fileProcessing';
 
 interface TeacherBrainProps {
   teacher: Teacher;
@@ -28,11 +32,30 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
   const [description, setDescription] = useState(teacher.description || '');
   const [personality, setPersonality] = useState(teacher.personality || '');
   const [personalitySources, setPersonalitySources] = useState(teacher.personalitySources || '');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [systemInstruction, setSystemInstruction] = useState(teacher.systemInstruction || '');
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkName, setLinkName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAnalyzePersonality = async () => {
+    if (!personalitySources.trim()) {
+      alert('Adicione pelo menos um link na caixa de Referências de Estilo primeiro.');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const profile = await analyzePersonalityLinks(personalitySources);
+      setPersonality(profile);
+      alert('Personalidade extraída com sucesso! Verifique o campo de Definição de Personalidade.');
+    } catch (error: any) {
+      alert(error.message || 'Erro ao analisar os links.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const handleSaveSettings = () => {
     onUpdateTeacher(teacher.id, {
@@ -48,50 +71,39 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    for (const file of files) {
-      // Increase limit to 20MB for videos/images
-      const limit = 20 * 1024 * 1024;
-      if (file.size > limit) {
-        alert(`O arquivo ${file.name} é muito grande. O limite é 20MB.`);
-        continue;
-      }
-
-      try {
-        let fileData = '';
-        let mimeType = file.type;
-
-        if (file.type === 'application/pdf') {
-            fileData = await extractTextFromPdf(file);
-        } else if (file.type === 'text/plain' || file.name.endsWith('.md') || file.name.endsWith('.txt')) {
-            fileData = await file.text();
-            mimeType = 'text/plain';
-        } else {
-            // Fallback to base64 for images/videos/others
-            const reader = new FileReader();
-            fileData = await new Promise<string>((resolve, reject) => {
-                reader.onload = (event) => {
-                    const result = event.target?.result as string;
-                    resolve(result.split(',')[1]);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
+    setIsAnalyzing(true); // Reuse analyzing state to show busy cursor/state
+    
+    try {
+      for (const file of files) {
+        // Increase limit to 50MB for videos/images since we process them with Gemini
+        const limit = 50 * 1024 * 1024;
+        if (file.size > limit) {
+          alert(`O arquivo ${file.name} é muito grande. O limite é 50MB.`);
+          continue;
         }
 
-        if (fileData) {
+        try {
+          const fileData = await processFile(file);
+          
+          if (fileData) {
             onAddFile(teacher.id, {
               name: file.name,
-              mimeType: mimeType || 'application/octet-stream',
+              mimeType: file.type || 'application/octet-stream',
               data: fileData,
               type: 'file'
             });
+          }
+        } catch (error: any) {
+          console.error(`Erro ao processar ${file.name}:`, error);
+          alert(`Erro ao processar ${file.name}: ${error.message}`);
         }
-      } catch (error) {
-        console.error('Erro ao processar arquivo', error);
-        alert(`Erro ao processar o arquivo ${file.name}.`);
+      }
+    } finally {
+      setIsAnalyzing(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
     }
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleAddLink = (e: React.FormEvent) => {
@@ -257,17 +269,37 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
                     <textarea
                       value={personality}
                       onChange={(e) => setPersonality(e.target.value)}
-                      placeholder="Ex: Você é um professor sarcástico mas muito inteligente. Use gírias de tecnologia e seja direto..."
+                      placeholder="Ex: Você é um professor sarcástico mas muito inteligente. Use gírias de tecnologia e seja direto... Ou gere automaticamente com a IA usando os links abaixo."
                       rows={4}
                       className="w-full bg-bg-card border border-border-subtle px-4 lg:px-6 py-4 lg:py-5 rounded-[20px] lg:rounded-[24px] text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none text-xs lg:text-sm placeholder:text-text-muted/30" />
                   </div>
 
                   <div>
-                    <label className="block text-[9px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2 lg:mb-3">Referências de Estilo (Links/Vídeos)</label>
+                    <div className="flex items-center justify-between mb-2 lg:mb-3">
+                      <label className="block text-[9px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest">Referências de Estilo (Links/Vídeos)</label>
+                      <button
+                        type="button"
+                        onClick={handleAnalyzePersonality}
+                        disabled={isAnalyzing || !personalitySources.trim()}
+                        className="flex items-center gap-1.5 text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-emerald-500 hover:text-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isAnalyzing ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Analisando...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3 h-3" />
+                            Extrair com IA
+                          </>
+                        )}
+                      </button>
+                    </div>
                     <textarea
                       value={personalitySources}
                       onChange={(e) => setPersonalitySources(e.target.value)}
-                      placeholder="Cole links de vídeos do YouTube ou textos para o professor imitar o estilo..."
+                      placeholder="Cole links de vídeos do YouTube ou textos para a IA analisar e extrair a personalidade..."
                       rows={3}
                       className="w-full bg-bg-card border border-border-subtle px-4 lg:px-6 py-4 lg:py-5 rounded-[20px] lg:rounded-[24px] text-text-primary focus:outline-none focus:border-border-strong transition-all resize-none text-xs lg:text-sm placeholder:text-text-muted/30" />
                   </div>

@@ -1,4 +1,5 @@
 import { Teacher, ChatMessage, TeacherFile, Topic } from '../types';
+import { GoogleGenAI } from "@google/genai";
 
 const CHUNK_SIZE = 20000; // Reduced chunk size for better reliability with Groq TPM limits
 
@@ -192,5 +193,46 @@ export async function generateSummary(teacher: Teacher, selectedFiles?: TeacherF
       return `Erro ao gerar resumo: ${error.message}`;
     }
     return 'Ocorreu um erro ao gerar o sumário dos arquivos.';
+  }
+}
+
+export async function analyzePersonalityLinks(links: string): Promise<string> {
+  if (!links || !links.trim()) {
+    throw new Error('Nenhum link fornecido para análise.');
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    
+    const prompt = `Acesse e analise os seguintes links (vídeos do YouTube, artigos, etc) para entender a personalidade da pessoa neles.
+Extraia profundamente:
+1. O estilo de fala (formal, informal, gírias, ritmo)
+2. O humor e tom (sarcástico, motivacional, acadêmico, agressivo, calmo)
+3. Vícios de linguagem ou frases de efeito comuns
+4. Como a pessoa estrutura seus pensamentos
+
+Crie um perfil detalhado em primeira pessoa ("Eu sou...") de como eu devo agir para imitar essa pessoa perfeitamente em um chat.
+
+Links para análise:
+${links}
+
+Retorne APENAS o perfil de personalidade detalhado, sem introduções ou conclusões extras.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+      },
+    });
+
+    if (!response.text) {
+      throw new Error('A IA não retornou nenhum texto.');
+    }
+
+    return response.text;
+  } catch (error) {
+    console.error("Error analyzing personality links:", error);
+    throw new Error("Falha ao analisar os links com a IA. Verifique se os links são públicos e válidos.");
   }
 }
