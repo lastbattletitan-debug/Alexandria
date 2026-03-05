@@ -1,10 +1,65 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, Send, FileText, Loader2, BookOpen, Link as LinkIcon, Trash2, Brain, Bookmark, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Send, FileText, Loader2, BookOpen, Link as LinkIcon, Trash2, Brain, Bookmark, ChevronDown, Sparkles } from 'lucide-react';
 
 import ReactMarkdown from 'react-markdown';
 import { Teacher, ChatMessage, TeacherFile, Topic } from '../types';
 import { chatWithTeacher, generateSummary } from '../services/aiService';
+
+// StarField Component
+const StarField = () => {
+  const stars = useMemo(() => {
+    return Array.from({ length: 50 }).map((_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 2 + 1,
+      duration: Math.random() * 20 + 10,
+      delay: Math.random() * 5
+    }));
+  }, []);
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+      {stars.map((star) => (
+        <motion.div
+          key={star.id}
+          className="absolute bg-white rounded-full opacity-20"
+          style={{
+            left: `${star.x}%`,
+            top: `${star.y}%`,
+            width: star.size,
+            height: star.size,
+          }}
+          animate={{
+            opacity: [0.2, 0.8, 0.2],
+            scale: [1, 1.2, 1],
+            y: [0, -100],
+          }}
+          transition={{
+            duration: star.duration,
+            repeat: Infinity,
+            delay: star.delay,
+            ease: "linear"
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// Alexandria Logo Component
+const AlexandriaLogo = () => (
+  <div className="flex flex-col items-center gap-4 mb-8">
+    <div className="relative">
+      <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
+      <Brain className="w-16 h-16 lg:w-20 lg:h-20 text-emerald-500 relative z-10" />
+    </div>
+    <h1 className="text-3xl lg:text-4xl font-bold text-text-primary tracking-tight">
+      Alexandria
+    </h1>
+  </div>
+);
 
 interface TeacherChatProps {
   teacher: Teacher;
@@ -39,6 +94,7 @@ export function TeacherChat({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const history = currentTopic ? currentTopic.chatHistory : teacher.chatHistory;
+  const isEmpty = history.length === 0;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -114,16 +170,16 @@ export function TeacherChat({
   };
 
   return (
-    <div className="flex flex-col h-full bg-bg-main">
+    <div className="flex flex-col h-full bg-bg-main relative overflow-hidden">
+      <StarField />
+      
       {/* Header Hover Area */}
-      <div className="relative group/header">
-        <motion.header 
-          initial={false}
-          animate={{ 
-            opacity: 1, 
-            y: 0 
-          }}
-          className="bg-bg-sidebar border-b border-border-subtle px-4 lg:px-8 py-3 lg:py-4 flex items-center justify-between sticky top-0 z-20 bg-bg-sidebar/95 backdrop-blur-sm"
+      <div className="absolute top-0 left-0 right-0 z-30 group/header">
+        {/* Invisible trigger zone at the top to make revealing easier */}
+        <div className="h-6 w-full absolute top-0 left-0 z-40" />
+        
+        <header 
+          className="bg-bg-sidebar/95 backdrop-blur-md border-b border-border-subtle px-4 lg:px-8 py-3 lg:py-4 flex items-center justify-between transition-all duration-300 ease-in-out opacity-0 -translate-y-full group-hover/header:opacity-100 group-hover/header:translate-y-0"
         >
           <div className="flex items-center gap-3 lg:gap-6 min-w-0">
             <button
@@ -235,80 +291,70 @@ export function TeacherChat({
               <Brain className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
             </button>
           </div>
-        </motion.header>
+        </header>
       </div>
 
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4 lg:p-8 space-y-4 lg:space-y-8">
-        {history.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-text-muted space-y-4 lg:space-y-6">
-            <div className="w-20 h-20 lg:w-32 lg:h-32 rounded-[20px] lg:rounded-[32px] bg-bg-card border border-border-subtle flex items-center justify-center overflow-hidden">
-              {currentTopic ? (
-                <Bookmark className="w-[28px] h-[28px] lg:w-[48px] lg:h-[48px] opacity-20" />
-              ) : (
-                teacher.imageUrl ? (
-                  <img src={teacher.imageUrl} alt="" className="w-full h-full object-cover opacity-20 grayscale" referrerPolicy="no-referrer" />
-                ) : (
-                  <Brain className="w-[28px] h-[28px] lg:w-[48px] lg:h-[48px] opacity-20" />
-                )
-              )}
-            </div>
-            <p className="text-center max-w-xs lg:max-w-sm text-[10px] lg:text-sm font-medium leading-relaxed px-6">
-              {currentTopic 
-                ? `Iniciando tópico: ${currentTopic.name}. O que você quer aprender sobre isso hoje?`
-                : `Envie uma mensagem para começar a conversar com ${teacher.name}. Adicione fontes acima para que o professor as utilize como base de conhecimento.`
-              }
-            </p>
-          </div>
-        ) : (
-          history.map((msg, idx) => (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              key={msg.id || idx}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[90%] lg:max-w-[75%] rounded-[18px] lg:rounded-[24px] px-4 lg:px-6 py-3 lg:py-5 leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'bg-text-primary text-bg-main font-medium'
-                    : 'bg-bg-card border border-border-subtle text-text-primary shadow-sm'
-                }`}
-              >
-                {msg.role === 'model' ? (
-                  <div className="prose prose-invert prose-xs lg:prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-bg-main prose-pre:border prose-pre:border-border-strong text-text-primary">
-                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+      <div className="flex-1 overflow-y-auto p-4 lg:p-8 z-10">
+        <div className="max-w-4xl mx-auto space-y-4 lg:space-y-8 min-h-full flex flex-col">
+          {!isEmpty && (
+            <>
+              {history.map((msg, idx) => (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  key={msg.id || idx}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[90%] lg:max-w-[75%] rounded-[18px] lg:rounded-[24px] px-4 lg:px-6 py-3 lg:py-5 leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-text-primary text-bg-main font-medium'
+                        : 'bg-bg-card border border-border-subtle text-text-primary shadow-sm'
+                    }`}
+                  >
+                    {msg.role === 'model' ? (
+                      <div className="prose prose-invert prose-xs lg:prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-bg-main prose-pre:border prose-pre:border-border-strong text-text-primary">
+                        <ReactMarkdown>{msg.text}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="whitespace-pre-wrap text-xs lg:text-sm">{msg.text}</p>
+                    )}
                   </div>
-                ) : (
-                  <p className="whitespace-pre-wrap text-xs lg:text-sm">{msg.text}</p>
-                )}
-              </div>
-            </motion.div>
-          ))
-        )}
-        {isLoading && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex justify-start"
-          >
-            <div className="bg-bg-card border border-border-subtle rounded-[18px] lg:rounded-[24px] px-4 lg:px-6 py-3 lg:py-5 flex items-center gap-2 lg:gap-3 text-text-muted">
-              <Loader2 className="w-[12px] h-[12px] lg:w-[16px] lg:h-[16px] animate-spin" />
-              <span className="text-[8px] lg:text-[10px] font-bold uppercase tracking-widest">Digitando...</span>
-            </div>
-          </motion.div>
-        )}
-        <div ref={messagesEndRef} />
+                </motion.div>
+              ))}
+              {isLoading && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex justify-start"
+                >
+                  <div className="bg-bg-card border border-border-subtle rounded-[18px] lg:rounded-[24px] px-4 lg:px-6 py-3 lg:py-5 flex items-center gap-2 lg:gap-3 text-text-muted">
+                    <Loader2 className="w-[12px] h-[12px] lg:w-[16px] lg:h-[16px] animate-spin" />
+                    <span className="text-[8px] lg:text-[10px] font-bold uppercase tracking-widest">Digitando...</span>
+                  </div>
+                </motion.div>
+              )}
+              <div ref={messagesEndRef} />
+            </>
+          )}
+        </div>
       </div>
 
       {/* Input Area */}
-      <div className="bg-bg-main p-4 lg:p-8 shrink-0 pb-safe lg:pb-8">
-        <div className="max-w-4xl mx-auto relative flex flex-col gap-3 lg:gap-4 group/input">
+      <motion.div 
+        layout
+        className={`z-20 ${isEmpty ? 'absolute inset-0 flex items-center justify-center p-4' : 'bg-bg-main p-4 lg:p-8 shrink-0 pb-safe lg:pb-8'}`}
+      >
+        <div className={`w-full max-w-4xl mx-auto relative flex flex-col gap-3 lg:gap-4 group/input transition-all duration-500 ${isEmpty ? 'scale-105' : ''}`}>
+          
+          {isEmpty && <AlexandriaLogo />}
+
           {/* Selective Source Selector */}
           {teacher.files.length > 0 && (
             <motion.div 
               initial={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-2 lg:gap-3 overflow-x-auto pb-2 scrollbar-none bg-bg-main/80 backdrop-blur-sm py-2 px-2 lg:px-4 rounded-xl lg:rounded-2xl border border-border-subtle/50"
+              className={`flex items-center gap-2 lg:gap-3 overflow-x-auto pb-2 scrollbar-none py-2 px-2 lg:px-4 rounded-xl lg:rounded-2xl border border-border-subtle/50 ${isEmpty ? 'justify-center bg-transparent border-none' : 'bg-bg-main/80 backdrop-blur-sm'}`}
             >
               <span className="text-[7px] lg:text-[9px] font-bold text-text-muted uppercase tracking-widest whitespace-nowrap">Falar sobre:</span>
               <button
@@ -340,7 +386,7 @@ export function TeacherChat({
             </motion.div>
           )}
 
-          <form onSubmit={handleSend} className="relative group/textarea">
+          <form onSubmit={handleSend} className="relative group/textarea w-full">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -356,19 +402,19 @@ export function TeacherChat({
                   ? `Pergunte sobre "${teacher.topics?.find(t => t.id === selectedChatTopicId)?.name}"...` 
                   : "Pergunte algo...")
               }
-              className="w-full bg-bg-card border border-border-subtle focus:bg-border-subtle focus:border-border-strong focus:ring-0 rounded-[18px] lg:rounded-[24px] py-3.5 lg:py-5 pl-4 lg:pl-6 pr-12 lg:pr-16 resize-none max-h-32 lg:max-h-48 min-h-[48px] lg:min-h-[64px] transition-all text-xs lg:text-sm placeholder:text-text-muted/50 text-text-primary"
+              className={`w-full bg-bg-card border border-border-subtle focus:bg-border-subtle focus:border-border-strong focus:ring-0 rounded-[18px] lg:rounded-[24px] py-3.5 lg:py-5 pl-4 lg:pl-6 pr-12 lg:pr-16 resize-none max-h-32 lg:max-h-48 min-h-[48px] lg:min-h-[64px] transition-all text-xs lg:text-sm placeholder:text-text-muted/50 text-text-primary ${isEmpty ? 'border-border-strong' : ''}`}
               rows={1}
             />
             <button
               type="submit"
               disabled={!input.trim() || isLoading}
-              className="absolute right-1.5 lg:right-3 bottom-1.5 lg:bottom-3 p-2 lg:p-3 text-bg-main bg-text-primary rounded-lg lg:rounded-2xl hover:opacity-90 disabled:opacity-20 transition-all active:scale-95"
+              className="absolute right-1.5 lg:right-3 top-1/2 -translate-y-1/2 p-2 lg:p-3 text-bg-main bg-text-primary rounded-lg lg:rounded-2xl hover:opacity-90 disabled:opacity-20 transition-all active:scale-95 flex items-center justify-center"
             >
               <Send className="w-[16px] h-[16px] lg:w-[20px] lg:h-[20px]" />
             </button>
           </form>
         </div>
-      </div>
+      </motion.div>
 
       {/* Clear Chat Modal */}
       <AnimatePresence>

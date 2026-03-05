@@ -60,6 +60,7 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
   };
 
   const handleSaveSettings = () => {
+    console.log('Saving settings...');
     onUpdateTeacher(teacher.id, {
       description,
       personality,
