@@ -1,7 +1,7 @@
 import { Teacher, ChatMessage, TeacherFile, Topic } from '../types';
 import { GoogleGenAI } from "@google/genai";
 
-const CHUNK_SIZE = 20000; // Reduced chunk size for better reliability with Groq TPM limits
+const CHUNK_SIZE = 60000; // Optimized for Free Tier: Large enough to reduce request count (RPM), small enough for reliability
 
 function splitTextIntoChunks(text: string, chunkSize: number): string[] {
   const chunks: string[] = [];
@@ -125,6 +125,11 @@ export async function chatWithTeacher(
     
     let prompt = teacher.systemInstruction;
 
+    // Prevent repetitive greetings in ongoing conversations
+    if (history.length > 0) {
+      prompt += `\n\n[INSTRUÇÃO DE FLUXO]: Esta é uma conversa em andamento. NÃO se apresente novamente. NÃO inicie a resposta com saudações repetitivas (ex: "Olá, meu caro...", "Como seu professor..."). Vá direto ao ponto, respondendo à última mensagem do usuário de forma natural e fluida, mas mantendo sua personalidade rica, o uso de metáforas e analogias.`;
+    }
+
     // Add file context
     const filesToUse = selectedFileIds && selectedFileIds.length > 0 
       ? teacher.files.filter(f => selectedFileIds.includes(f.id))
@@ -144,7 +149,9 @@ export async function chatWithTeacher(
 
         if (isDetailRequest) {
            // User wants EVERYTHING. Send as much as possible (up to safe limit).
-           const MAX_CONTEXT_LENGTH = 200000;
+           // Free Tier Safe Limit: ~150k tokens (600k chars). 
+           // Gemini Free supports up to 1M tokens, but we keep a buffer for stability.
+           const MAX_CONTEXT_LENGTH = 600000; 
            finalContext = fullContextText.length > MAX_CONTEXT_LENGTH 
             ? fullContextText.substring(0, MAX_CONTEXT_LENGTH) + "\n\n[... O restante do conteúdo foi truncado por ser muito longo ...]"
             : fullContextText;
@@ -154,7 +161,7 @@ export async function chatWithTeacher(
         } else {
            // Semantic Search Mode (NotebookLM style)
            // Extract only relevant parts to save tokens and focus attention
-           const relevantText = findRelevantChunks(fullContextText, message, 8, 3000); // ~24k chars max
+           const relevantText = findRelevantChunks(fullContextText, message, 10, 6000); // Balanced for Free Tier
            
            finalContext = relevantText;
            prompt += `\n\n=== MODO DE BUSCA SEMÂNTICA ===\nBaseie-se nos trechos abaixo, que foram selecionados por relevância à pergunta do usuário. Se a resposta não estiver clara nestes trechos, avise o usuário.`;
@@ -191,7 +198,7 @@ export async function generateSummary(teacher: Teacher, selectedFiles?: TeacherF
       .join('\n\n');
 
     // Limit the text to summarize to avoid massive API costs and rate limits
-    const MAX_SUMMARY_LENGTH = 100000;
+    const MAX_SUMMARY_LENGTH = 400000; // Safe limit for Free Tier
     const textToSummarize = fullText.length > MAX_SUMMARY_LENGTH 
       ? fullText.substring(0, MAX_SUMMARY_LENGTH) + "\n\n[... O restante do documento foi omitido para o sumário ...]"
       : fullText;
@@ -218,7 +225,7 @@ export async function generateSummary(teacher: Teacher, selectedFiles?: TeacherF
         
         // Increased delay between chunks to avoid rate limits
         if (i < chunks.length - 1) {
-          await delay(4000); 
+          await delay(6000); // 6 seconds delay to be very gentle on Free Tier RPM
         }
       } catch (err) {
         console.error(`Erro ao processar parte ${i + 1}:`, err);

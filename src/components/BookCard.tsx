@@ -19,7 +19,7 @@ export function BookCard({ book, onRead, onViewNotes, onDelete, viewMode = 'grid
     <motion.div
       whileHover={{ y: isList ? 0 : -8, x: isList ? 8 : 0 }}
       className={`bg-bg-card border border-white/5 rounded-[24px] lg:rounded-[32px] flex group hover:border-white/20 transition-all relative overflow-hidden ${
-        isList ? 'flex-row h-24 lg:h-32 w-full items-center' : 'flex-col items-center aspect-[3/5]'
+        isList ? 'flex-row h-24 lg:h-32 w-full items-center' : 'flex-col items-center aspect-[3/4]'
       }`}
       style={{ padding: isList ? `${12 * zoom}px ${16 * zoom}px` : `${16 * zoom}px` }}
     >

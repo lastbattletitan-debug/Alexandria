@@ -32,7 +32,7 @@ export function TeacherCard({
       whileTap={{ scale: 0.98 }}
       onClick={onChat}
       className={`cursor-pointer group relative rounded-[24px] lg:rounded-[32px] overflow-hidden bg-bg-card flex transition-all duration-500 border border-white/5 hover:border-white/20 ${
-        isList ? 'flex-row h-24 lg:h-32' : 'flex-col aspect-[3/5]'
+        isList ? 'flex-row h-24 lg:h-32' : 'flex-col aspect-[3/4]'
       }`}
     >
       {/* Grayscale Image with Overlay */}
