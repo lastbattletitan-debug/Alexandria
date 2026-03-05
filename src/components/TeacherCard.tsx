@@ -31,10 +31,14 @@ export function TeacherCard({
       whileHover={{ y: -8 }}
       whileTap={{ scale: 0.98 }}
       onClick={onChat}
-      className={`cursor-pointer group relative rounded-[24px] lg:rounded-[32px] overflow-hidden bg-bg-card flex transition-all duration-500 border border-white/5 hover:border-white/20 ${
-        isList ? 'flex-row h-24 lg:h-32' : 'flex-col aspect-[3/4]'
+      className={`cursor-pointer group relative rounded-[12px] lg:rounded-[16px] overflow-hidden bg-bg-card flex transition-all duration-500 transform-gpu ${
+        isList ? 'flex-row h-24 lg:h-32' : 'flex-col aspect-[2/3]'
       }`}
+      style={{ WebkitMaskImage: '-webkit-radial-gradient(white, black)' }}
     >
+      {/* Border Overlay */}
+      <div className="absolute inset-0 rounded-[12px] lg:rounded-[16px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)] group-hover:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)] pointer-events-none z-50 transition-all duration-300" />
+
       {/* Grayscale Image with Overlay */}
       <div className={`${isList ? 'w-24 lg:w-32 h-full' : 'absolute inset-0 z-0'}`}>
         <img
@@ -83,17 +87,17 @@ export function TeacherCard({
       </div>
 
       {/* Content */}
-      <div className={`relative z-20 flex flex-col items-start gap-1.5 lg:gap-3 ${
+      <div className={`relative z-20 flex flex-col items-start gap-0.5 lg:gap-1 ${
         isList ? 'flex-1 justify-center px-4 lg:px-8' : 'mt-auto p-3 lg:p-8'
       }`}>
         <span 
-          className="font-bold uppercase tracking-[0.25em] bg-bg-card/80 backdrop-blur-md text-text-primary px-2 lg:px-3 py-1 lg:py-1.5 rounded-md lg:rounded-lg border border-border-strong shadow-sm"
-          style={{ fontSize: `${(isList ? 7 : 9) * zoom}px` }}
+          className="font-bold uppercase tracking-wider bg-black/60 backdrop-blur-md text-white px-2 py-0.5 rounded-full border border-white/10 shadow-sm"
+          style={{ fontSize: `${(isList ? 8 : 9) * zoom}px` }}
         >
           {teacher.category || 'Mente'}
         </span>
         
-        <div className="mt-0.5 lg:mt-1">
+        <div className="mt-0">
           <h3 
             className="text-text-primary font-bold leading-tight tracking-tight drop-shadow-sm line-clamp-1"
             style={{ fontSize: `${(isList ? 16 : (isMobile ? 16 : 24)) * zoom}px` }}
