@@ -29,6 +29,11 @@ async function createServer() {
         // @ts-ignore - Vercel types compatibility
         await aiHandler(req as any, res as any);
       });
+
+      // New Backend Routes
+      const backendRoutes = await import('./server/routes');
+      app.use('/api', backendRoutes.default);
+
     } catch (error) {
       console.warn('Could not load local API handler for /api/ai:', error);
     }
