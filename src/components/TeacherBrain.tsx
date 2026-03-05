@@ -13,12 +13,13 @@ import {
   MessageSquare,
   Zap,
   Sparkles,
-  Loader2
+  Loader2,
+  CheckCircle
 } from 'lucide-react';
 import { Teacher, TeacherFile } from '../types';
 import { extractTextFromPdf } from '../utils/pdfUtils';
 import { analyzePersonalityLinks } from '../services/aiService';
-import { processFile } from '../utils/fileProcessing';
+import { processFile, processLink } from '../utils/fileProcessing';
 
 interface TeacherBrainProps {
   teacher: Teacher;
@@ -37,6 +38,7 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkName, setLinkName] = useState('');
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAnalyzePersonality = async () => {
@@ -64,7 +66,8 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
       personalitySources,
       systemInstruction
     });
-    alert('Configurações do cérebro salvas com sucesso!');
+    setShowSuccessToast(true);
+    setTimeout(() => setShowSuccessToast(false), 3000);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -106,20 +109,31 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
     }
   };
 
-  const handleAddLink = (e: React.FormEvent) => {
+  const handleAddLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!linkUrl) return;
 
-    onAddFile(teacher.id, {
-      name: linkName || linkUrl,
-      mimeType: 'text/uri-list',
-      url: linkUrl,
-      type: 'link'
-    });
+    setIsAnalyzing(true);
+    try {
+      const linkContent = await processLink(linkUrl);
 
-    setLinkUrl('');
-    setLinkName('');
-    setIsLinkModalOpen(false);
+      onAddFile(teacher.id, {
+        name: linkName || linkUrl,
+        mimeType: 'text/uri-list',
+        url: linkUrl,
+        type: 'link',
+        data: linkContent
+      });
+
+      setLinkUrl('');
+      setLinkName('');
+      setIsLinkModalOpen(false);
+    } catch (error) {
+      console.error('Erro ao processar link:', error);
+      alert('Erro ao processar o link. Verifique se é válido e público.');
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
@@ -374,6 +388,22 @@ export function TeacherBrain({ teacher, onBack, onUpdateTeacher, onAddFile, onRe
               </form>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+      {/* Success Toast */}
+      <AnimatePresence>
+        {showSuccessToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: -20, x: '-50%' }}
+            className="fixed top-24 left-1/2 z-50 bg-emerald-500/90 backdrop-blur-md text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-emerald-400/50"
+          >
+            <div className="bg-white/20 p-1 rounded-full">
+              <CheckCircle size={16} className="text-white" strokeWidth={3} />
+            </div>
+            <span className="font-bold uppercase tracking-widest text-xs">Salvo com sucesso</span>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

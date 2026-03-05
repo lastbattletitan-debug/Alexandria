@@ -23,6 +23,28 @@ export async function processFile(file: File): Promise<string> {
   throw new Error(`Tipo de arquivo não suportado: ${fileType}`);
 }
 
+export async function processLink(url: string): Promise<string> {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("GEMINI_API_KEY não configurada.");
+
+    const ai = new GoogleGenAI({ apiKey });
+    
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Acesse o seguinte link e extraia todo o conteúdo de texto principal e relevante para estudo. Ignore menus, rodapés, anúncios e navegação. Faça um resumo detalhado se o texto for muito longo, ou extraia o conteúdo integral se for um artigo:\n${url}`,
+      config: {
+        tools: [{ googleSearch: {} }],
+      },
+    });
+
+    return response.text || "Não foi possível extrair conteúdo deste link.";
+  } catch (error: any) {
+    console.error("Erro ao processar link com Gemini:", error);
+    return `Erro ao processar link: ${error.message || error}`;
+  }
+}
+
 async function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -47,15 +69,13 @@ async function processImageWithGemini(file: File): Promise<string> {
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: "Descreva detalhadamente esta imagem para que ela possa ser usada como contexto em uma base de conhecimento (RAG). Inclua todos os textos visíveis, objetos, cenas e detalhes relevantes." },
-            { inlineData: { mimeType: file.type, data: base64Data } }
-          ]
-        }
-      ]
+      contents: {
+        role: "user",
+        parts: [
+          { text: "Descreva detalhadamente esta imagem para que ela possa ser usada como contexto em uma base de conhecimento (RAG). Inclua todos os textos visíveis, objetos, cenas e detalhes relevantes." },
+          { inlineData: { mimeType: file.type, data: base64Data } }
+        ]
+      }
     });
 
     return response.text || "Não foi possível gerar descrição para a imagem.";
@@ -75,15 +95,13 @@ async function processVideoWithGemini(file: File): Promise<string> {
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: "Assista a este vídeo e faça uma transcrição detalhada e um resumo completo do conteúdo, focando em informações úteis para uma base de conhecimento. Se houver fala, transcreva. Se for visual, descreva." },
-            { inlineData: { mimeType: file.type, data: base64Data } }
-          ]
-        }
-      ]
+      contents: {
+        role: "user",
+        parts: [
+          { text: "Assista a este vídeo e faça uma transcrição detalhada e um resumo completo do conteúdo, focando em informações úteis para uma base de conhecimento. Se houver fala, transcreva. Se for visual, descreva." },
+          { inlineData: { mimeType: file.type, data: base64Data } }
+        ]
+      }
     });
 
     return response.text || "Não foi possível gerar descrição para o vídeo.";
