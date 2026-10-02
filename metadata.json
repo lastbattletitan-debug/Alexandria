@@ -1,5 +1,8 @@
 {
   "name": "Alexandria",
   "description": "Uma estante virtual de professores de IA com chat e sumário de arquivos.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

@@ -57,21 +57,23 @@ export function TeacherCard({
         <button
           onClick={(e) => { e.stopPropagation(); onOpenBrain(e); }}
           className="p-2 lg:p-3 bg-text-primary text-bg-card backdrop-blur-xl rounded-xl lg:rounded-2xl border border-border-strong transition-all hover:scale-110 shadow-xl"
-          title="Cérebro do Professor"
+          title={teacher.role === 'Mentor' ? 'Abrir Cérebro (.md)' : 'Cérebro do Professor'}
         >
           <Brain size={14} className="lg:w-4 lg:h-4" />
         </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onOpenTopics(e); }}
-          className="p-2 lg:p-3 bg-bg-card/80 hover:bg-bg-card backdrop-blur-xl rounded-xl lg:rounded-2xl text-text-primary border border-border-strong transition-all shadow-xl"
-          title="Tópicos de Estudo"
-        >
-          <BookOpen size={14} className="lg:w-4 lg:h-4" />
-        </button>
+        {teacher.role !== 'Mentor' && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenTopics(e); }}
+            className="p-2 lg:p-3 bg-bg-card/80 hover:bg-bg-card backdrop-blur-xl rounded-xl lg:rounded-2xl text-text-primary border border-border-strong transition-all shadow-xl"
+            title="Tópicos de Estudo"
+          >
+            <BookOpen size={14} className="lg:w-4 lg:h-4" />
+          </button>
+        )}
         <button
           onClick={(e) => { e.stopPropagation(); onEdit(e); }}
           className="p-2 lg:p-3 bg-bg-card/80 hover:bg-bg-card backdrop-blur-xl rounded-xl lg:rounded-2xl text-text-primary border border-border-strong transition-all shadow-xl"
-          title="Editar Professor"
+          title={teacher.role === 'Mentor' ? 'Editar Mentor' : 'Editar Professor'}
         >
           <Pencil size={14} className="lg:w-4 lg:h-4" />
         </button>
@@ -79,7 +81,7 @@ export function TeacherCard({
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(e); }}
             className="p-2 lg:p-3 bg-red-500/10 hover:bg-red-500/20 backdrop-blur-xl rounded-xl lg:rounded-2xl text-red-500 border border-red-500/20 transition-all shadow-xl"
-            title="Excluir Professor"
+            title={teacher.role === 'Mentor' ? 'Excluir Mentor' : 'Excluir Professor'}
           >
             <Trash2 size={14} className="lg:w-4 lg:h-4" />
           </button>
@@ -91,10 +93,17 @@ export function TeacherCard({
         isList ? 'flex-1 justify-center px-4 lg:px-8' : 'mt-auto p-3 lg:p-8'
       }`}>
         <span 
-          className="font-bold uppercase tracking-wider bg-black/60 backdrop-blur-md text-white px-2 py-0.5 rounded-full border border-white/10 shadow-sm"
+          className="font-bold uppercase tracking-wider bg-black/60 backdrop-blur-md text-white px-2 py-0.5 rounded-full border border-white/10 shadow-sm flex items-center gap-1"
           style={{ fontSize: `${(isList ? 8 : 9) * zoom}px` }}
         >
-          {teacher.category || 'Mente'}
+          {teacher.role === 'Mentor' ? (
+            <>
+              <Brain size={10} className="text-amber-400" />
+              <span>{teacher.files?.length || 0} .md</span>
+            </>
+          ) : (
+            teacher.category || 'Mente'
+          )}
         </span>
         
         <div className="mt-0">

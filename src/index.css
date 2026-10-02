@@ -77,3 +77,39 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #333;
 }
+
+/* 3D Flip Book Styles - Solid Opaque Pages */
+.stf__parent,
+.stf__wrapper {
+  position: relative !important;
+  box-sizing: border-box !important;
+}
+
+.stf__item {
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  opacity: 1 !important;
+  -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
+  background-color: #fdfaf3 !important;
+  isolation: isolate !important;
+}
+
+.stf__item.--simple {
+  opacity: 1 !important;
+}
+
+.book-leaf-page {
+  box-sizing: border-box !important;
+  opacity: 1 !important;
+  -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
+  isolation: isolate !important;
+}
+
+.stf__outerShadow,
+.stf__innerShadow,
+.stf__hardShadow,
+.stf__hardInnerShadow {
+  pointer-events: none !important;
+}

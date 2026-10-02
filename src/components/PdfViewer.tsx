@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { ChevronLeft, ChevronRight, Loader2, ArrowLeft, Minus, Plus, Rows, FileText, Search, X, Save, Tag, Info, Star, Edit2, Trash2, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, ArrowLeft, Minus, Plus, Rows, FileText, Search, X, Save, Tag, Info, Star, Edit2, Trash2, Check, BookOpen, Volume2, VolumeX, Maximize2, Minimize2 } from 'lucide-react';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { extractTextFromPdf } from '../utils/pdfUtils';
+import { Book3DViewer } from './Book3DViewer';
 
 // Configure worker
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -11,6 +12,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.vers
 interface PdfViewerProps {
   url: string;
   title?: string;
+  initialPage?: number;
   onClose?: () => void;
   onSaveSnippet?: (text: string) => void;
   onPageChange?: (page: number, total: number) => void;
@@ -31,6 +33,7 @@ interface PdfViewerProps {
 export function PdfViewer({ 
   url, 
   title, 
+  initialPage = 1,
   onClose, 
   onSaveSnippet, 
   onPageChange,
@@ -48,12 +51,13 @@ export function PdfViewer({
   onUpdateRating
 }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
-  const [pageNumber, setPageNumber] = useState(1);
+  const [pageNumber, setPageNumber] = useState(initialPage || 1);
   const [scale, setScale] = useState(1.0);
-  const [inputPage, setInputPage] = useState('1');
+  const [inputPage, setInputPage] = useState((initialPage || 1).toString());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'single' | 'scroll'>('single');
+  const [viewMode, setViewMode] = useState<'single' | 'scroll' | 'book3d'>('book3d');
+  const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [isToolbarVisible, setIsToolbarVisible] = useState(false);
   
   // Search state
@@ -73,26 +77,57 @@ export function PdfViewer({
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isBottomControlsVisible, setIsBottomControlsVisible] = useState(false);
 
+  // 3D Book Mode Controls State
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [paperTheme, setPaperTheme] = useState<'vintage' | 'clean' | 'night'>('vintage');
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen?.().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+      setIsFullscreen(false);
+    }
+  };
+
   // Selection state
   const [selection, setSelection] = useState<string | null>(null);
   const [selectionPosition, setSelectionPosition] = useState<{top: number, left: number} | null>(null);
-  const [containerWidth, setContainerWidth] = useState<number | undefined>(undefined);
+  const [pdfAspectRatio, setPdfAspectRatio] = useState<number | null>(null);
+  const [pageSize, setPageSize] = useState<{ width: number }>({ width: 650 });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const updateWidth = () => {
-      if (containerRef.current) {
-        // Limit the maximum width to a reasonable reading size (e.g., 800px)
-        // or the container width minus padding, whichever is smaller.
-        const maxWidth = 800;
-        const availableWidth = containerRef.current.clientWidth - 32; // 32px padding
-        setContainerWidth(Math.min(maxWidth, availableWidth));
+  const updateDimensions = useCallback(() => {
+    if (!containerRef.current) return;
+    const availWidth = Math.max(280, containerRef.current.clientWidth - 48);
+    const availHeight = Math.max(300, containerRef.current.clientHeight - 80);
+    const ratio = pdfAspectRatio || 0.707; // Default to standard document aspect ratio
+
+    if (viewMode === 'single') {
+      // In Single (Lado) mode: Fit page cleanly into both viewport width and height at 100% zoom
+      let w = availWidth;
+      let h = w / ratio;
+      if (h > availHeight) {
+        h = availHeight;
+        w = h * ratio;
       }
-    };
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
-  }, []);
+      setPageSize({ width: Math.floor(w) });
+    } else {
+      // In Scroll (Cima) mode: Comfortable centered reading width respecting landscape or portrait
+      let maxScrollW = ratio > 1.1 
+        ? Math.min(availWidth, Math.min(availHeight * ratio * 0.9, 900))
+        : Math.min(availWidth, 700);
+      setPageSize({ width: Math.floor(maxScrollW) });
+    }
+  }, [pdfAspectRatio, viewMode]);
+
+  useEffect(() => {
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, [updateDimensions]);
 
   useEffect(() => {
     setPageNumber(1);
@@ -220,9 +255,20 @@ export function PdfViewer({
     setPageNumber(searchResults[prevIndex]);
   };
 
-  function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
-    setNumPages(numPages);
+  function onDocumentLoadSuccess(pdf: any) {
+    setNumPages(pdf.numPages);
+    setPdfDoc(pdf);
     setLoading(false);
+    
+    // Detect aspect ratio from the first page
+    pdf.getPage(1).then((page: any) => {
+      const vp = page.getViewport({ scale: 1.0 });
+      if (vp.width && vp.height) {
+        setPdfAspectRatio(vp.width / vp.height);
+      }
+    }).catch((err: any) => {
+      console.error('Error getting page viewport ratio:', err);
+    });
   }
 
   function onDocumentLoadError(err: Error) {
@@ -280,23 +326,30 @@ export function PdfViewer({
         </div>
       )}
 
-      {/* Header Bar - Always visible on mobile, hidden by default on desktop */}
+      {/* Top Hover Trigger Area (Desktop) */}
       <div 
-        className="absolute top-0 left-0 right-0 z-40 lg:opacity-0 lg:hover:opacity-100 transition-opacity duration-300"
-        style={{ opacity: (typeof window !== 'undefined' && window.innerWidth < 1024) || isToolbarVisible || isSearchOpen || isCategoryOpen || isDetailsOpen ? 1 : undefined }}
+        className="hidden lg:block absolute top-0 left-0 right-0 h-16 z-30 pointer-events-auto"
+        onMouseEnter={() => setIsToolbarVisible(true)}
+      />
+
+      {/* Header Bar - Auto-hides on desktop and appears on hover / interaction */}
+      <div 
+        className={`absolute top-0 left-0 right-0 z-40 transition-all duration-300 ease-out transform ${
+          (typeof window !== 'undefined' && window.innerWidth < 1024) || isToolbarVisible || isSearchOpen || isCategoryOpen || isDetailsOpen 
+            ? 'opacity-100 translate-y-0 pointer-events-auto shadow-2xl' 
+            : 'opacity-0 -translate-y-3 pointer-events-none'
+        }`}
         onMouseEnter={() => setIsToolbarVisible(true)}
         onMouseLeave={() => setIsToolbarVisible(false)}
       >
-        {/* Trigger area to ensure hover works easily */}
-        <div className="h-4 w-full absolute -top-4 left-0" />
-        
-        <div className="flex items-center justify-between px-4 lg:px-6 py-3 lg:py-4 bg-bg-sidebar/95 backdrop-blur-md border-b border-border-subtle shadow-lg gap-2 lg:gap-4">
+        <div className="flex items-center justify-between px-4 lg:px-6 py-2.5 lg:py-3 bg-bg-sidebar/95 backdrop-blur-xl border-b border-border-subtle shadow-xl gap-2 lg:gap-4">
           {/* Left: Back & Title */}
           <div className="flex items-center gap-2 lg:gap-4 min-w-0">
             {onClose && (
               <button
                 onClick={onClose}
                 className="p-2 hover:bg-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors shrink-0"
+                title="Voltar"
               >
                 <ArrowLeft className="w-[18px] h-[18px] lg:w-[20px] lg:h-[20px]" />
               </button>
@@ -591,150 +644,245 @@ export function PdfViewer({
               )}
             </div>
 
-          {/* View Mode Toggle - Hidden on very small screens */}
-          <div className="hidden sm:flex items-center bg-bg-card border border-border-subtle rounded-xl p-1">
+          {/* Mode Switcher */}
+          <div className="hidden sm:flex items-center bg-bg-card border border-border-subtle rounded-xl p-1 gap-0.5">
+            <button
+              onClick={() => setViewMode('book3d')}
+              className={`p-2 rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'book3d' ? 'bg-amber-500/20 text-amber-300 font-semibold shadow-sm' : 'text-text-muted hover:text-text-primary'}`}
+              title="Livro Físico 3D (Folhear Páginas)"
+            >
+              <BookOpen className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
+              <span className="text-[10px] hidden md:inline">3D</span>
+            </button>
             <button
               onClick={() => setViewMode('single')}
-              className={`p-2 rounded-lg transition-colors ${viewMode === 'single' ? 'bg-border-subtle text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
-              title="Página Única"
+              className={`p-2 rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'single' ? 'bg-border-subtle text-text-primary font-semibold' : 'text-text-muted hover:text-text-primary'}`}
+              title="Página Única (Arrastar para o lado)"
             >
               <FileText className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
+              <span className="text-[10px] hidden md:inline">Lado</span>
             </button>
             <button
               onClick={() => setViewMode('scroll')}
-              className={`p-2 rounded-lg transition-colors ${viewMode === 'scroll' ? 'bg-border-subtle text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
-              title="Rolagem Contínua"
+              className={`p-2 rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'scroll' ? 'bg-border-subtle text-text-primary font-semibold' : 'text-text-muted hover:text-text-primary'}`}
+              title="Rolagem Contínua (Arrastar para cima)"
             >
               <Rows className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
+              <span className="text-[10px] hidden md:inline">Cima</span>
             </button>
           </div>
 
-          {/* Zoom Controls - Hidden on very small screens */}
-          <div className="hidden md:flex items-center gap-3 bg-bg-card border border-border-subtle rounded-xl p-2 px-3">
-            <button
-              onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
-              className="text-text-muted hover:text-text-primary transition-colors"
-            >
-              <Minus className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
-            </button>
-            
-            <input 
-              type="range" 
-              min="0.5" 
-              max="3" 
-              step="0.1" 
-              value={scale} 
-              onChange={(e) => setScale(parseFloat(e.target.value))}
-              className="w-16 lg:w-24 h-1 bg-border-subtle rounded-lg appearance-none cursor-pointer accent-text-primary" />
-            
-            <button
-              onClick={() => setScale(s => Math.min(3, s + 0.1))}
-              className="text-text-muted hover:text-text-primary transition-colors"
-            >
-              <Plus className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
-            </button>
-            <span className="text-[10px] lg:text-xs font-bold text-text-primary w-8 lg:w-10 text-right select-none">
-              {Math.round(scale * 100)}%
-            </span>
-          </div>
+          {/* 3D Mode Controls or 2D Zoom Controls */}
+          {viewMode === 'book3d' ? (
+            <div className="flex items-center gap-1.5 lg:gap-2">
+              {/* Sound Toggle */}
+              <button
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                className={`p-2 rounded-xl border transition-all ${
+                  soundEnabled 
+                    ? 'bg-amber-500/15 border-amber-500/30 text-amber-300' 
+                    : 'bg-bg-card border-border-subtle text-text-muted hover:text-text-primary'
+                }`}
+                title={soundEnabled ? "Som ativado" : "Som desativado"}
+              >
+                {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+              </button>
+
+              {/* Paper Themes */}
+              <div className="hidden sm:flex items-center bg-bg-card border border-border-subtle rounded-xl p-1 gap-0.5">
+                <button
+                  onClick={() => setPaperTheme('vintage')}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] lg:text-xs font-medium transition-all ${
+                    paperTheme === 'vintage' ? 'bg-amber-800/40 text-amber-200 font-bold' : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  Vintage
+                </button>
+                <button
+                  onClick={() => setPaperTheme('clean')}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] lg:text-xs font-medium transition-all ${
+                    paperTheme === 'clean' ? 'bg-white/15 text-white font-bold' : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  Clean
+                </button>
+                <button
+                  onClick={() => setPaperTheme('night')}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] lg:text-xs font-medium transition-all ${
+                    paperTheme === 'night' ? 'bg-blue-900/40 text-blue-200 font-bold' : 'text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  Dark
+                </button>
+              </div>
+
+              {/* Fullscreen */}
+              <button
+                onClick={toggleFullscreen}
+                className="p-2 rounded-xl bg-bg-card border border-border-subtle text-text-muted hover:text-text-primary transition-colors"
+                title="Tela cheia"
+              >
+                {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
+            </div>
+          ) : (
+            /* Zoom Controls - Hidden on very small screens */
+            <div className="hidden md:flex items-center gap-3 bg-bg-card border border-border-subtle rounded-xl p-2 px-3">
+              <button
+                onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
+                className="text-text-muted hover:text-text-primary transition-colors"
+              >
+                <Minus className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
+              </button>
+              
+              <input 
+                type="range" 
+                min="0.5" 
+                max="3" 
+                step="0.1" 
+                value={scale} 
+                onChange={(e) => setScale(parseFloat(e.target.value))}
+                className="w-16 lg:w-24 h-1 bg-border-subtle rounded-lg appearance-none cursor-pointer accent-text-primary" />
+              
+              <button
+                onClick={() => setScale(s => Math.min(3, s + 0.1))}
+                className="text-text-muted hover:text-text-primary transition-colors"
+              >
+                <Plus className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
+              </button>
+              <span className="text-[10px] lg:text-xs font-bold text-text-primary w-8 lg:w-10 text-right select-none">
+                {Math.round(scale * 100)}%
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>
 
-      {/* PDF Content */}
-      <div className="flex-1 overflow-auto flex justify-center p-4 lg:p-8 bg-bg-main/50 relative">
-        {loading && !error && (
-            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-                <div className="bg-bg-card/80 backdrop-blur-sm p-4 rounded-xl flex items-center gap-3 border border-border-subtle shadow-lg">
-                    <Loader2 className="animate-spin text-text-primary" />
-                    <span className="text-sm font-medium text-text-primary">Carregando documento...</span>
-                </div>
-            </div>
-        )}
-        
-        {error ? (
-            <div className="flex flex-col items-center justify-center h-full text-red-400 gap-2">
-                <p>{error}</p>
-                <button 
-                    onClick={onClose}
-                    className="px-4 py-2 bg-bg-card border border-border-subtle rounded-lg text-text-primary hover:bg-border-subtle transition-colors text-sm"
-                >
-                    Fechar
-                </button>
-            </div>
-        ) : (
-            <div className={`shadow-2xl border border-border-subtle bg-white transition-all duration-200 ${viewMode === 'scroll' ? 'mb-8' : ''}`}>
-                <Document
-                    file={url}
-                    onLoadSuccess={onDocumentLoadSuccess}
-                    onLoadError={onDocumentLoadError}
-                    loading={null}
-                    className="flex flex-col items-center"
-                >
-                    {viewMode === 'single' ? (
-                        <Page 
-                            pageNumber={pageNumber} 
-                            scale={scale} 
-                            width={containerWidth}
-                            renderTextLayer={true}
-                            renderAnnotationLayer={true}
-                            className="max-w-full" />
-                    ) : (
-                        Array.from(new Array(numPages), (el, index) => (
-                            <Page 
-                                key={`page_${index + 1}`}
-                                pageNumber={index + 1} 
-                                scale={scale} 
-                                width={containerWidth}
-                                renderTextLayer={true}
-                                renderAnnotationLayer={true}
-                                className="max-w-full mb-2 border-b border-gray-200 last:border-0" />
-                        ))
-                    )}
-                </Document>
-            </div>
-        )}
-
-        {/* Floating Bottom Page Controls */}
-        {viewMode === 'single' && !loading && !error && (
-          <div 
-            className="absolute bottom-6 lg:bottom-12 left-1/2 -translate-x-1/2 z-40 transition-all duration-300 lg:opacity-0 lg:hover:opacity-100"
-            style={{ 
-              opacity: (typeof window !== 'undefined' && window.innerWidth < 1024) || isBottomControlsVisible ? 1 : undefined,
-              transform: `translateX(-50%) translateY(${((typeof window !== 'undefined' && window.innerWidth < 1024) || isBottomControlsVisible) ? '0' : '10px'})`
-            }}
-            onMouseEnter={() => setIsBottomControlsVisible(true)}
-            onMouseLeave={() => setIsBottomControlsVisible(false)}
-          >
-            {/* Trigger area */}
-            <div className="absolute -top-12 left-0 right-0 h-12" />
-            
-            <div className="flex items-center gap-1 bg-black/90 backdrop-blur-xl border border-white/10 rounded-xl px-2 py-1 shadow-2xl">
-              <button
-                onClick={() => changePage(-1)}
-                disabled={pageNumber <= 1}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-white/40 hover:text-white disabled:opacity-10 transition-colors"
-              >
-                <ChevronLeft size={14} />
-              </button>
-              
-              <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/5">
-                <span className="text-[11px] font-bold text-white tracking-tight">{pageNumber}</span>
-                <span className="text-white/20 text-[10px]">/</span>
-                <span className="text-white/40 text-[11px] font-medium">{numPages || '--'}</span>
-              </div>
-
-              <button
-                onClick={() => changePage(1)}
-                disabled={!numPages || pageNumber >= numPages}
-                className="p-1.5 hover:bg-white/10 rounded-lg text-white/40 hover:text-white disabled:opacity-10 transition-colors"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
+      {/* Content Rendering based on ViewMode */}
+      {viewMode === 'book3d' ? (
+        <div className="flex-1 w-full h-full relative">
+          {/* Hidden Document loader to retrieve pdf proxy & page count */}
+          <div className="hidden">
+            <Document
+              file={url}
+              onLoadSuccess={onDocumentLoadSuccess}
+              onLoadError={onDocumentLoadError}
+              loading={null}
+            />
           </div>
-        )}
-      </div>
+          <Book3DViewer 
+            pdfDocument={pdfDoc}
+            pdfPagesCount={numPages || undefined}
+            isLoading={loading || (!pdfDoc && !error)}
+            soundEnabled={soundEnabled}
+            paperTheme={paperTheme}
+            title={title}
+            initialPage={pageNumber - 1}
+            onPageChange={(page, total) => {
+              setPageNumber(page);
+              setInputPage(page.toString());
+              if (onPageChangeRef.current && total) {
+                onPageChangeRef.current(page, total);
+              }
+            }}
+          />
+        </div>
+      ) : (
+        <div className="flex-1 overflow-auto flex justify-center p-4 lg:p-8 bg-bg-main/50 relative">
+          {loading && !error && (
+              <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                  <div className="bg-bg-card/80 backdrop-blur-sm p-4 rounded-xl flex items-center gap-3 border border-border-subtle shadow-lg">
+                      <Loader2 className="animate-spin text-text-primary" />
+                      <span className="text-sm font-medium text-text-primary">Carregando documento...</span>
+                  </div>
+              </div>
+          )}
+          
+          {error ? (
+              <div className="flex flex-col items-center justify-center h-full text-red-400 gap-2">
+                  <p>{error}</p>
+                  <button 
+                      onClick={onClose}
+                      className="px-4 py-2 bg-bg-card border border-border-subtle rounded-lg text-text-primary hover:bg-border-subtle transition-colors text-sm"
+                  >
+                      Fechar
+                  </button>
+              </div>
+          ) : (
+              <div className={`shadow-2xl border border-border-subtle bg-white transition-all duration-200 ${viewMode === 'scroll' ? 'mb-8' : ''}`}>
+                  <Document
+                      file={url}
+                      onLoadSuccess={onDocumentLoadSuccess}
+                      onLoadError={onDocumentLoadError}
+                      loading={null}
+                      className="flex flex-col items-center"
+                  >
+                      {viewMode === 'single' ? (
+                          <Page 
+                              pageNumber={pageNumber} 
+                              scale={scale} 
+                              width={pageSize.width}
+                              renderTextLayer={true}
+                              renderAnnotationLayer={true}
+                              className="max-w-full" />
+                      ) : (
+                          Array.from(new Array(numPages), (el, index) => (
+                              <Page 
+                                  key={`page_${index + 1}`}
+                                  pageNumber={index + 1} 
+                                  scale={scale} 
+                                  width={pageSize.width}
+                                  renderTextLayer={true}
+                                  renderAnnotationLayer={true}
+                                  className="max-w-full mb-2 border-b border-gray-200 last:border-0" />
+                          ))
+                      )}
+                  </Document>
+              </div>
+          )}
+
+          {/* Floating Bottom Page Controls for single page mode */}
+          {viewMode === 'single' && !loading && !error && (
+            <div 
+              className="absolute bottom-6 lg:bottom-12 left-1/2 -translate-x-1/2 z-40 transition-all duration-300 lg:opacity-0 lg:hover:opacity-100"
+              style={{ 
+                opacity: (typeof window !== 'undefined' && window.innerWidth < 1024) || isBottomControlsVisible ? 1 : undefined,
+                transform: `translateX(-50%) translateY(${((typeof window !== 'undefined' && window.innerWidth < 1024) || isBottomControlsVisible) ? '0' : '10px'})`
+              }}
+              onMouseEnter={() => setIsBottomControlsVisible(true)}
+              onMouseLeave={() => setIsBottomControlsVisible(false)}
+            >
+              {/* Trigger area */}
+              <div className="absolute -top-12 left-0 right-0 h-12" />
+              
+              <div className="flex items-center gap-1 bg-black/90 backdrop-blur-xl border border-white/10 rounded-xl px-2 py-1 shadow-2xl">
+                <button
+                  onClick={() => changePage(-1)}
+                  disabled={pageNumber <= 1}
+                  className="p-1.5 hover:bg-white/10 rounded-lg text-white/40 hover:text-white disabled:opacity-10 transition-colors"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                
+                <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-lg border border-white/5">
+                  <span className="text-[11px] font-bold text-white tracking-tight">{pageNumber}</span>
+                  <span className="text-white/20 text-[10px]">/</span>
+                  <span className="text-white/40 text-[11px] font-medium">{numPages || '--'}</span>
+                </div>
+
+                <button
+                  onClick={() => changePage(1)}
+                  disabled={!numPages || pageNumber >= numPages}
+                  className="p-1.5 hover:bg-white/10 rounded-lg text-white/40 hover:text-white disabled:opacity-10 transition-colors"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

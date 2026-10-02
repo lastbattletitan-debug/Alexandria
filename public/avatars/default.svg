@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="avatarBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#241b14"/>
+      <stop offset="100%" stop-color="#0f0c09"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="40" fill="url(#avatarBg)"/>
+  <circle cx="100" cy="100" r="88" fill="none" stroke="#d97706" stroke-width="2" opacity="0.6"/>
+  
+  <!-- Silhouette of reader / bust -->
+  <circle cx="100" cy="75" r="32" fill="#fde68a" opacity="0.9"/>
+  <path d="M45,160 C45,120 70,115 100,115 C130,115 155,120 155,160 Z" fill="#f59e0b" opacity="0.85"/>
+</svg>

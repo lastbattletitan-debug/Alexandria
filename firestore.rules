@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$');
+    }
+
+    function isValidBook(data) {
+      return data.title is string && data.title.size() <= 500 &&
+             data.author is string && data.author.size() <= 500 &&
+             (!('coverPath' in data) || (data.coverPath is string && data.coverPath.size() <= 500000)) &&
+             (!('contentPath' in data) || (data.contentPath is string && data.contentPath.size() <= 500000)) &&
+             (!('content' in data) || (data.content is string && data.content.size() <= 950000)) &&
+             data.status in ['unread', 'reading', 'paused', 'finished'] &&
+             data.currentPage is number &&
+             data.progress is number && data.progress >= 0.0 && data.progress <= 1.0;
+    }
+
+    function isValidNote(data) {
+      return data.page is number &&
+             data.content is string && data.content.size() <= 20000;
+    }
+
+    function isValidChapter(data) {
+      return data.title is string && data.title.size() <= 500 &&
+             data.order is number &&
+             data.content is string && data.content.size() <= 800000;
+    }
+
+    function isValidProfile(data) {
+      return data.name is string && data.name.size() <= 200 &&
+             (!('avatarPath' in data) || (data.avatarPath is string && data.avatarPath.size() <= 500000)) &&
+             (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 500000));
+    }
+
+    // Books collection
+    match /books/{bookId} {
+      allow read: if true;
+      allow create, update: if isValidId(bookId) && isValidBook(request.resource.data);
+      allow delete: if isValidId(bookId);
+
+      // Chapters subcollection for large books
+      match /chapters/{chapterId} {
+        allow read: if true;
+        allow create, update: if isValidId(bookId) && isValidId(chapterId) && isValidChapter(request.resource.data);
+        allow delete: if isValidId(bookId) && isValidId(chapterId);
+      }
+
+      // Book Notes subcollection
+      match /notes/{noteId} {
+        allow read: if true;
+        allow create, update: if isValidId(bookId) && isValidId(noteId) && isValidNote(request.resource.data);
+        allow delete: if isValidId(bookId) && isValidId(noteId);
+      }
+    }
+
+    // Profile settings
+    match /profile/{settingsDoc} {
+      allow read: if true;
+      allow create, update: if isValidId(settingsDoc) && isValidProfile(request.resource.data);
+      allow delete: if false;
+    }
+
+    // Fallback safety rule
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

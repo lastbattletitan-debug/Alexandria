@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { teacherKnowledge } from './pdfProcessor';
+import { teacherKnowledge } from './pdfProcessor.ts';
 
 const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 

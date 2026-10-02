@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
-import { buscarChunksRelevantes } from './vectorSearch';
-import { adicionarAoHistorico, obterHistorico } from './chatMemory';
+import { buscarChunksRelevantes } from './vectorSearch.ts';
+import { adicionarAoHistorico, obterHistorico } from './chatMemory.ts';
 
 const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 

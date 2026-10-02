@@ -1,13 +1,13 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Upload, Image as ImageIcon, LogIn, BookOpen, CheckCircle2, XCircle, Users, GraduationCap } from 'lucide-react';
+import { X, Upload, Image as ImageIcon, BookOpen, CheckCircle2, XCircle, GraduationCap, Loader2 } from 'lucide-react';
 
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   userName: string;
   userImage: string;
-  onUpdateProfile: (name: string, image: string) => void;
+  onUpdateProfile: (name: string, imageFile?: File | Blob) => Promise<void> | void;
   stats: {
     booksCompleted: number;
     booksDiscarded: number;
@@ -26,34 +26,29 @@ export function ProfileModal({
   stats
 }: ProfileModalProps) {
   const [name, setName] = useState(userName);
-  const [imageUrl, setImageUrl] = useState(userImage);
+  const [previewUrl, setPreviewUrl] = useState(userImage);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setImageUrl(event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+    setSelectedFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
   };
 
-  const handleSave = () => {
-    onUpdateProfile(name, imageUrl);
-    onClose();
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onUpdateProfile(name, selectedFile || undefined);
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
   };
-
-  // const handleLogin = async () => {
-  //   try {
-  //     const res = await fetch('/api/auth/google');
-  //     const data = await res.json();
-  //     window.location.href = data.url;
-  //   } catch (error) {
-  //     console.error('Failed to login with Google:', error);
-  //   }
-  // };
 
   return (
     <AnimatePresence>
@@ -66,7 +61,7 @@ export function ProfileModal({
             className="bg-bg-card border border-border-strong rounded-[24px] lg:rounded-[32px] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[85vh] lg:max-h-[90vh]"
           >
             <div className="flex items-center justify-between p-4 lg:p-6 xl:p-8 border-b border-border-subtle shrink-0">
-              <h2 className="text-lg lg:text-xl xl:text-2xl font-bold text-text-primary">Meu Perfil</h2>
+              <h2 className="text-lg lg:text-xl xl:text-2xl font-bold text-text-primary">Meu Perfil Pessoal</h2>
               <button
                 onClick={onClose}
                 className="p-1.5 lg:p-2 text-text-muted hover:text-text-primary hover:bg-border-subtle rounded-full transition-colors"
@@ -78,12 +73,12 @@ export function ProfileModal({
             <div className="overflow-y-auto p-4 lg:p-6 xl:p-8 space-y-4 lg:space-y-6">
               <div className="flex flex-col items-center gap-2">
                 <div 
-                  className="w-16 h-16 lg:w-20 lg:h-20 xl:w-24 xl:h-24 rounded-full bg-border-subtle border-2 border-dashed border-border-strong flex items-center justify-center overflow-hidden relative group cursor-pointer"
+                  className="w-16 h-16 lg:w-20 lg:h-20 xl:w-24 xl:h-24 rounded-full bg-border-subtle border-2 border-dashed border-border-strong flex items-center justify-center overflow-hidden relative group cursor-pointer shadow-inner"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  {imageUrl ? (
+                  {previewUrl ? (
                     <>
-                      <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <Upload className="w-[20px] h-[20px] lg:w-[24px] lg:h-[24px] text-white" />
                       </div>
@@ -91,7 +86,7 @@ export function ProfileModal({
                   ) : (
                     <div className="flex flex-col items-center text-text-muted">
                       <ImageIcon className="w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />
-                      <span className="text-[8px] lg:text-[10px] uppercase font-bold mt-1 tracking-widest">Upload</span>
+                      <span className="text-[8px] lg:text-[10px] uppercase font-bold mt-1 tracking-widest">Foto</span>
                     </div>
                   )}
                 </div>
@@ -100,7 +95,9 @@ export function ProfileModal({
                   ref={fileInputRef} 
                   onChange={handleImageUpload} 
                   accept="image/*" 
-                  className="hidden" />
+                  className="hidden" 
+                />
+                <span className="text-[10px] text-text-muted">Clique para alterar a foto (salva no Cloud Storage)</span>
               </div>
 
               <div>
@@ -109,28 +106,28 @@ export function ProfileModal({
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-bg-main border border-border-subtle px-4 py-3 rounded-xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all" />
+                  placeholder="Seu nome"
+                  className="w-full bg-bg-main border border-border-subtle px-4 py-3 rounded-xl text-xs lg:text-sm text-text-primary focus:outline-none focus:border-border-strong transition-all" 
+                />
               </div>
 
               <button
                 onClick={handleSave}
-                className="w-full bg-text-primary text-bg-main font-bold text-[8px] lg:text-[10px] uppercase tracking-widest py-3 lg:py-4 px-4 rounded-xl hover:opacity-90 transition-all"
+                disabled={isSaving}
+                className="w-full bg-text-primary text-bg-main font-bold text-[8px] lg:text-[10px] uppercase tracking-widest py-3 lg:py-4 px-4 rounded-xl hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
-                Salvar Alterações
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Salvando no Firebase...
+                  </>
+                ) : (
+                  'Salvar Alterações'
+                )}
               </button>
 
-              <div className="border-t border-border-subtle pt-4 lg:pt-6 space-y-3 lg:space-y-4">
-                <button 
-                  disabled
-                  className="w-full flex items-center justify-center gap-2 lg:gap-3 bg-red-600 text-white px-4 py-3 rounded-xl text-xs lg:text-sm font-medium transition-colors opacity-50 cursor-not-allowed">
-                  <LogIn className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
-                  <span>Login com Google</span>
-                </button>
-                <p className="text-[10px] lg:text-xs text-text-muted text-center">Login com Google temporariamente desativado.</p>
-              </div>
-
               <div className="border-t border-border-subtle pt-4 lg:pt-6">
-                <p className="text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-4">Estatísticas</p>
+                <p className="text-[8px] lg:text-[10px] font-bold text-text-muted uppercase tracking-widest mb-4">Estatísticas da Biblioteca</p>
                 <div className="grid grid-cols-2 gap-3 lg:gap-4">
                   <div className="bg-bg-main border border-border-subtle rounded-xl p-3 lg:p-4 flex flex-col gap-2">
                     <div className="flex items-center gap-2 text-text-muted">
@@ -159,13 +156,6 @@ export function ProfileModal({
                       <span className="text-[10px] lg:text-xs font-bold uppercase tracking-wider">Professores</span>
                     </div>
                     <span className="text-xl lg:text-2xl font-bold text-text-primary">{stats.teachersCount}</span>
-                  </div>
-                  <div className="bg-bg-main border border-border-subtle rounded-xl p-3 lg:p-4 flex flex-col gap-2 col-span-2">
-                    <div className="flex items-center gap-2 text-text-muted">
-                      <Users className="w-4 h-4" />
-                      <span className="text-[10px] lg:text-xs font-bold uppercase tracking-wider">Mentores</span>
-                    </div>
-                    <span className="text-xl lg:text-2xl font-bold text-text-primary">{stats.mentorsCount}</span>
                   </div>
                 </div>
               </div>

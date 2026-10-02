@@ -20,6 +20,7 @@ import {
 } from '@dnd-kit/sortable';
 import { useTeachers } from './hooks/useTeachers';
 import { useLibrary } from './hooks/useLibrary';
+import { useProfile } from './hooks/useProfile';
 import { generatePdfThumbnail } from './utils/pdfUtils';
 
 import { TeacherCard } from './components/TeacherCard';
@@ -31,6 +32,8 @@ import { Teacher, Topic, LibraryBook } from './types';
 import { TeacherTopics } from './components/TeacherTopics';
 import { ProfileModal } from './components/ProfileModal';
 import { PdfViewer } from './components/PdfViewer';
+import { MarkdownViewer } from './components/MarkdownViewer';
+import { MentorBrainView } from './components/MentorBrainView';
 import { SortableBookCard } from './components/SortableBookCard';
 
 type ViewMode = 'grid' | 'list' | 'categories' | 'status';
@@ -105,22 +108,15 @@ export default function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 1024);
-  const [userName, setUserName] = useState(() => localStorage.getItem('userName') || 'Seu nome');
-  const [userImage, setUserImage] = useState(() => localStorage.getItem('userImage') || '');
-  const [userPlan, setUserPlan] = useState(() => localStorage.getItem('userPlan') || 'Desconhecido');
   const [logoError, setLogoError] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem('userName', userName);
-  }, [userName]);
-
-  useEffect(() => {
-    localStorage.setItem('userImage', userImage);
-  }, [userImage]);
-
-  useEffect(() => {
-    localStorage.setItem('userPlan', userPlan);
-  }, [userPlan]);
+  // Persistent User Profile (Firestore & Cloud Storage)
+  const {
+    name: userName,
+    avatarUrl: userImage,
+    plan: userPlan,
+    updateProfile,
+  } = useProfile();
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
@@ -157,7 +153,10 @@ export default function App() {
     createGlobalCategory,
     renameCategory,
     deleteCategory,
-    reorderBooks
+    reorderBooks,
+    addNote,
+    removeNote,
+    loadNotesForBook
   } = useLibrary();
   const [isUploading, setIsUploading] = useState(false);
   const [readingBookId, setReadingBookId] = useState<string | null>(null);
@@ -215,7 +214,9 @@ export default function App() {
 
     result.sort((a, b) => {
       if (librarySort === 'recent') {
-        return new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime();
+        const timeA = new Date(a.createdAt || a.addedAt || 0).getTime();
+        const timeB = new Date(b.createdAt || b.addedAt || 0).getTime();
+        return timeB - timeA;
       }
       if (librarySort === 'rating') {
         return (b.rating || 0) - (a.rating || 0);
@@ -231,11 +232,19 @@ export default function App() {
     return result;
   }, [books, searchQuery, librarySort, libraryFilter]);
 
-  const handleAddOrEdit = (teacherData: Omit<Teacher, 'id' | 'files' | 'chatHistory' | 'topics'>) => {
+  const handleAddOrEdit = (teacherData: Omit<Teacher, 'id' | 'files' | 'chatHistory' | 'topics'> & { files?: any[] }) => {
     if (editingTeacher) {
-      updateTeacher(editingTeacher.id, teacherData);
+      updateTeacher(editingTeacher.id, {
+        ...teacherData,
+        ...(teacherData.files ? { files: teacherData.files } : {})
+      });
     } else {
-      addTeacher(teacherData);
+      const createdTeacher = addTeacher(teacherData);
+      if (teacherData.files && teacherData.files.length > 0) {
+        teacherData.files.forEach(f => {
+          addFileToTeacher(createdTeacher.id, f);
+        });
+      }
     }
     setIsModalOpen(false);
     setEditingTeacher(null);
@@ -269,23 +278,43 @@ export default function App() {
 
   const handleBookUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || file.type !== 'application/pdf') return;
+    if (!file) return;
+
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const isMd = file.name.toLowerCase().endsWith('.md') || file.type === 'text/markdown' || file.type === 'text/plain';
 
     setIsUploading(true);
     try {
-      const thumbnail = await generatePdfThumbnail(file);
-      const newBook = addBook({
-        title: file.name.replace('.pdf', ''),
+      let thumbnail = '';
+      if (isPdf) {
+        try {
+          thumbnail = await generatePdfThumbnail(file);
+        } catch (err) {
+          console.warn('Could not generate PDF thumbnail:', err);
+        }
+      }
+
+      const cleanTitle = file.name.replace(/\.(pdf|md|epub|txt)$/i, '');
+      const format = isMd ? 'md' : 'pdf';
+
+      const newBook = await addBook({
+        title: cleanTitle,
         author: 'Desconhecido',
         thumbnail,
-        url: URL.createObjectURL(file),
         file: file,
+        format,
+        status: 'reading',
       });
-      setReadingBookId(newBook.id);
+      if (newBook) {
+        setReadingBookId(newBook.id);
+      }
     } catch (error) {
       console.error('Erro ao carregar livro:', error);
     } finally {
       setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -329,19 +358,23 @@ export default function App() {
 
     if (activeTab === 'biblioteca') {
       if (viewMode === 'status') {
-        const statuses: LibraryBook['status'][] = ['Lendo agora', 'Concluído', 'Pausado', 'Próximo', 'Descartado'];
-        const booksWithNoStatus = processedBooks.filter(b => !b.status);
+        const statusGroups = [
+          { key: 'reading', label: 'Lendo agora' },
+          { key: 'unread', label: 'Não lidos / Próximos' },
+          { key: 'paused', label: 'Pausados' },
+          { key: 'finished', label: 'Concluídos' },
+        ];
         
         return (
           <div className="space-y-12 pb-24">
-            {statuses.map(status => {
-              const statusBooks = processedBooks.filter(b => b.status === status);
+            {statusGroups.map(group => {
+              const statusBooks = processedBooks.filter(b => b.status === group.key || (b.status as any) === group.label);
               if (statusBooks.length === 0) return null;
               return (
-                <div key={status} className="space-y-6">
+                <div key={group.key} className="space-y-6">
                   <h2 className="text-xl font-bold text-text-primary flex items-center gap-3">
                     <Check size={24} className="text-text-muted" />
-                    {status}
+                    {group.label}
                     <span className="text-sm font-normal text-text-muted bg-bg-card px-2 py-1 rounded-lg border border-border-subtle">
                       {statusBooks.length}
                     </span>
@@ -351,13 +384,13 @@ export default function App() {
                     style={gridStyle}
                   >
                     {statusBooks.map(book => (
-                      <BookCard 
-                        key={book.id} 
-                        book={book} 
-                        onRead={(b) => setReadingBookId(b.id)} 
-                        onViewNotes={(b) => setViewingSnippetsBookId(b.id)} 
-                        onDelete={removeBook} 
-                        viewMode={viewMode}
+                      <BookCard
+                        key={book.id}
+                        book={book}
+                        onRead={(b) => setReadingBookId(b.id)}
+                        onViewNotes={(b) => setViewingSnippetsBookId(b.id)}
+                        onDelete={removeBook}
+                        viewMode="grid"
                         zoom={currentZoom}
                       />
                     ))}
@@ -365,35 +398,7 @@ export default function App() {
                 </div>
               );
             })}
-            
-            {booksWithNoStatus.length > 0 && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-bold text-text-primary flex items-center gap-3">
-                  <Check size={24} className="text-text-muted" />
-                  Sem Status
-                  <span className="text-sm font-normal text-text-muted bg-bg-card px-2 py-1 rounded-lg border border-border-subtle">
-                    {booksWithNoStatus.length}
-                  </span>
-                </h2>
-                <div 
-                  className="grid gap-3 lg:gap-6 origin-top-left transition-all duration-300"
-                  style={gridStyle}
-                >
-                  {booksWithNoStatus.map(book => (
-                    <BookCard 
-                      key={book.id} 
-                      book={book} 
-                      onRead={(b) => setReadingBookId(b.id)} 
-                      onViewNotes={(b) => setViewingSnippetsBookId(b.id)} 
-                      onDelete={removeBook} 
-                      viewMode={viewMode}
-                      zoom={currentZoom}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-            
+
             <div className="pt-8 border-t border-border-subtle">
                 <h3 className="text-sm font-bold text-text-muted uppercase tracking-widest mb-6">Adicionar</h3>
                 <div 
@@ -420,7 +425,7 @@ export default function App() {
                         type="file" 
                         ref={fileInputRef} 
                         onChange={handleBookUpload} 
-                        accept=".pdf" 
+                        accept=".pdf,.md,.txt,.epub" 
                         className="hidden" 
                     />
                   </motion.div>
@@ -533,7 +538,7 @@ export default function App() {
                           type="file" 
                           ref={fileInputRef} 
                           onChange={handleBookUpload} 
-                          accept=".pdf" 
+                          accept=".pdf,.md,.txt,.epub" 
                           className="hidden" 
                       />
                     </motion.div>
@@ -581,7 +586,7 @@ export default function App() {
                     type="file" 
                     ref={fileInputRef} 
                     onChange={handleBookUpload} 
-                    accept=".pdf" 
+                    accept=".pdf,.md,.txt,.epub" 
                     className="hidden" 
                   />
                 </motion.div>
@@ -605,9 +610,15 @@ export default function App() {
             teacher={teacher}
             viewMode={viewMode}
             onChat={() => setSelectedTeacherId(teacher.id)}
-            onEdit={() => { setEditingTeacher(teacher); setIsModalOpen(true); }}
+            onEdit={() => { setEditingTeacher(teacher); setDefaultRole(teacher.role as any); setIsModalOpen(true); }}
             onDelete={() => setTeacherToDelete(teacher)}
-            onOpenBrain={() => setBrainTeacherId(teacher.id)}
+            onOpenBrain={() => {
+              if (teacher.role === 'Mentor') {
+                setSelectedTeacherId(teacher.id);
+              } else {
+                setBrainTeacherId(teacher.id);
+              }
+            }}
             onOpenTopics={() => setTopicsTeacherId(teacher.id)}
             zoom={currentZoom}
           />
@@ -694,22 +705,31 @@ export default function App() {
             </motion.div>
           ) : selectedTeacher ? (
             <motion.div
-              key="chat"
+              key={selectedTeacher.role === 'Mentor' ? 'mentor-brain' : 'chat'}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               className="flex-1 h-full"
             >
-              <TeacherChat
-                teacher={selectedTeacher}
-                onBack={() => setSelectedTeacherId(null)}
-                onAddMessage={addMessageToTeacher}
-                onAddFile={addFileToTeacher}
-                onRemoveFile={removeFileFromTeacher}
-                onClearChat={() => clearTeacherChat(selectedTeacher.id)}
-                onOpenBrain={() => setBrainTeacherId(selectedTeacher.id)}
-                onOpenTopics={() => setTopicsTeacherId(selectedTeacher.id)}
-              />
+              {selectedTeacher.role === 'Mentor' ? (
+                <MentorBrainView
+                  mentor={selectedTeacher}
+                  onBack={() => setSelectedTeacherId(null)}
+                  onAddFile={addFileToTeacher}
+                  onRemoveFile={removeFileFromTeacher}
+                />
+              ) : (
+                <TeacherChat
+                  teacher={selectedTeacher}
+                  onBack={() => setSelectedTeacherId(null)}
+                  onAddMessage={addMessageToTeacher}
+                  onAddFile={addFileToTeacher}
+                  onRemoveFile={removeFileFromTeacher}
+                  onClearChat={() => clearTeacherChat(selectedTeacher.id)}
+                  onOpenBrain={() => setBrainTeacherId(selectedTeacher.id)}
+                  onOpenTopics={() => setTopicsTeacherId(selectedTeacher.id)}
+                />
+              )}
             </motion.div>
           ) : (
             <motion.div
@@ -954,14 +974,13 @@ export default function App() {
           onClose={() => setIsProfileModalOpen(false)}
           userName={userName}
           userImage={userImage}
-          onUpdateProfile={(name, image) => {
-            setUserName(name);
-            setUserImage(image);
+          onUpdateProfile={async (name, file) => {
+            await updateProfile(name, file);
           }}
           stats={{
-            booksCompleted: processedBooks.filter(b => b.status === 'Concluído').length,
-            booksDiscarded: processedBooks.filter(b => b.status === 'Descartado').length,
-            booksReading: processedBooks.filter(b => b.status === 'Lendo agora').length,
+            booksCompleted: books.filter(b => b.status === 'finished' || (b.status as any) === 'Concluído').length,
+            booksDiscarded: books.filter(b => (b.status as any) === 'Descartado').length,
+            booksReading: books.filter(b => b.status === 'reading' || (b.status as any) === 'Lendo agora').length,
             teachersCount: teachers.filter(t => t.role === 'Professor').length,
             mentorsCount: teachers.filter(t => t.role === 'Mentor').length
           }}
@@ -1165,25 +1184,38 @@ export default function App() {
         <AnimatePresence>
           {readingBook && (
             <div className="fixed inset-0 z-[60] bg-bg-main">
-              <PdfViewer 
-                url={readingBook.url} 
-                title={readingBook.title}
-                onClose={() => setReadingBookId(null)}
-                onSaveSnippet={(text) => addSnippet(readingBook.id, text)}
-                onPageChange={(page, total) => updateBookProgress(readingBook.id, page, total)}
-                onOpenNotes={() => setViewingSnippetsBookId(readingBook.id)}
-                onAddCategory={(category) => addBookCategory(readingBook.id, category)}
-                onRemoveCategory={(category) => removeBookCategory(readingBook.id, category)}
-                onCreateCategory={createGlobalCategory}
-                onRenameCategory={renameCategory}
-                onDeleteCategory={deleteCategory}
-                categories={globalCategories}
-                currentCategories={readingBook.categories}
-                status={readingBook.status}
-                onUpdateStatus={(status) => updateBookStatus(readingBook.id, status)}
-                rating={readingBook.rating}
-                onUpdateRating={(rating) => updateBookRating(readingBook.id, rating)}
-              />
+              {readingBook.format === 'md' || (readingBook.contentPath && readingBook.contentPath.endsWith('.md')) || readingBook.title.endsWith('.md') ? (
+                <MarkdownViewer
+                  book={readingBook}
+                  onClose={() => setReadingBookId(null)}
+                  onProgressUpdate={(page, total, extra) => updateBookProgress(readingBook.id, page, total, extra)}
+                  notes={readingBook.notes}
+                  onAddNote={(noteData) => addNote(readingBook.id, noteData)}
+                  onDeleteNote={(noteId) => removeNote(readingBook.id, noteId)}
+                  onUpdateStatus={(status) => updateBookStatus(readingBook.id, status as any)}
+                />
+              ) : (
+                <PdfViewer 
+                  url={readingBook.url || ''} 
+                  title={readingBook.title}
+                  initialPage={readingBook.currentPage || 1}
+                  onClose={() => setReadingBookId(null)}
+                  onSaveSnippet={(text) => addSnippet(readingBook.id, text)}
+                  onPageChange={(page, total) => updateBookProgress(readingBook.id, page, total)}
+                  onOpenNotes={() => setViewingSnippetsBookId(readingBook.id)}
+                  onAddCategory={(category) => addBookCategory(readingBook.id, category)}
+                  onRemoveCategory={(category) => removeBookCategory(readingBook.id, category)}
+                  onCreateCategory={createGlobalCategory}
+                  onRenameCategory={renameCategory}
+                  onDeleteCategory={deleteCategory}
+                  categories={globalCategories}
+                  currentCategories={readingBook.categories}
+                  status={readingBook.status as any}
+                  onUpdateStatus={(status) => updateBookStatus(readingBook.id, status as any)}
+                  rating={readingBook.rating}
+                  onUpdateRating={(rating) => updateBookRating(readingBook.id, rating)}
+                />
+              )}
             </div>
           )}
         </AnimatePresence>

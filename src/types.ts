@@ -1,19 +1,59 @@
+export type BookStatus = 'unread' | 'reading' | 'paused' | 'finished';
+export type BookFormat = 'md' | 'pdf' | 'epub' | 'txt' | 'other';
 
-export type LibraryBook = {
+export interface BookNote {
+  id: string;
+  bookId: string;
+  page: number;
+  content: string;
+  selectedText?: string;
+  createdAt: string;
+  updatedAt: string;
+  tags: string[];
+  color?: string;
+}
+
+export interface LibraryBook {
   id: string;
   title: string;
   author: string;
-  thumbnail: string;
-  url: string;
-  file?: Blob;
-  addedAt: string;
-  snippets?: string[];
-  currentPage?: number;
-  totalPages?: number;
+  coverPath: string;
+  contentPath: string;
+  content?: string;
+  hasChapters?: boolean;
+  status: BookStatus;
+  currentPage: number;
+  totalPages: number;
+  progress: number; // 0.0 to 1.0
+  readingOrder: number;
+  favorite: boolean;
+  createdAt: string;
+  addedAt?: string;
+  updatedAt: string;
+  lastOpenedAt: string;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  currentScrollPosition?: number;
+  lastOpenedChapter?: string;
+  readingTime?: number; // in seconds
+  format?: BookFormat;
   categories?: string[];
-  status?: 'Próximo' | 'Lendo agora' | 'Pausado' | 'Concluído' | 'Descartado';
   rating?: number;
-};
+  // Local runtime cached accessors
+  url?: string;
+  thumbnail?: string;
+  file?: Blob | File;
+  snippets?: string[];
+  notes?: BookNote[];
+}
+
+export interface ProfileSettings {
+  name: string;
+  avatarPath?: string;
+  avatarUrl?: string;
+  updatedAt: string;
+  plan?: string;
+}
 
 export type TeacherFile = {
   id: string;

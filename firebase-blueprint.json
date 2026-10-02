@@ -1,0 +1,94 @@
+{
+  "entities": {
+    "Book": {
+      "title": "Book",
+      "description": "A book item in the user's personal Alexandria library with Markdown content stored directly in Firestore",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 500 },
+        "author": { "type": "string", "maxLength": 500 },
+        "coverPath": { "type": "string", "maxLength": 500000 },
+        "contentPath": { "type": "string", "maxLength": 1000 },
+        "content": { "type": "string", "maxLength": 800000 },
+        "hasChapters": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["unread", "reading", "paused", "finished"] },
+        "currentPage": { "type": "number" },
+        "totalPages": { "type": "number" },
+        "progress": { "type": "number" },
+        "readingOrder": { "type": "number" },
+        "favorite": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "lastOpenedAt": { "type": "string" },
+        "startedAt": { "type": "string" },
+        "finishedAt": { "type": "string" },
+        "currentScrollPosition": { "type": "number" },
+        "lastOpenedChapter": { "type": "string", "maxLength": 500 },
+        "readingTime": { "type": "number" },
+        "format": { "type": "string", "maxLength": 20 },
+        "rating": { "type": "number" }
+      },
+      "required": ["title", "author", "status", "currentPage", "progress", "readingOrder", "favorite", "createdAt", "updatedAt", "lastOpenedAt"]
+    },
+    "Chapter": {
+      "title": "Chapter",
+      "description": "A chapter or chunk of a book for large books exceeding single document limits",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 500 },
+        "order": { "type": "number" },
+        "content": { "type": "string", "maxLength": 800000 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["title", "order", "content"]
+    },
+    "BookNote": {
+      "title": "BookNote",
+      "description": "A note or annotation attached to a book and page",
+      "type": "object",
+      "properties": {
+        "bookId": { "type": "string", "maxLength": 128 },
+        "page": { "type": "number" },
+        "content": { "type": "string", "maxLength": 20000 },
+        "selectedText": { "type": "string", "maxLength": 5000 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "tags": { "type": "array" },
+        "color": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["page", "content", "createdAt", "updatedAt"]
+    },
+    "ProfileSettings": {
+      "title": "ProfileSettings",
+      "description": "User personal profile configuration",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 200 },
+        "avatarPath": { "type": "string", "maxLength": 500000 },
+        "avatarUrl": { "type": "string", "maxLength": 500000 },
+        "plan": { "type": "string", "maxLength": 100 },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/books/{bookId}": {
+      "schema": "Book",
+      "description": "Personal library books collection with text content stored directly in Firestore"
+    },
+    "/books/{bookId}/chapters/{chapterId}": {
+      "schema": "Chapter",
+      "description": "Chapters subcollection for large books exceeding single document limits"
+    },
+    "/books/{bookId}/notes/{noteId}": {
+      "schema": "BookNote",
+      "description": "Notes and annotations for a specific book"
+    },
+    "/profile/{settingsDoc}": {
+      "schema": "ProfileSettings",
+      "description": "User personal profile configuration"
+    }
+  }
+}

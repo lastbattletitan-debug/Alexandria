@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { ingestPDF, teacherKnowledge } from './pdfProcessor';
-import { responderPergunta } from './brain';
-import { limparHistorico } from './chatMemory';
+import { ingestPDF, teacherKnowledge } from './pdfProcessor.ts';
+import { responderPergunta } from './brain.ts';
+import { limparHistorico } from './chatMemory.ts';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
