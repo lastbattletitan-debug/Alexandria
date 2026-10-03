@@ -18,6 +18,7 @@ import {
   deleteStoragePath,
 } from '../services/storageService';
 import { runFirebaseMigration } from '../services/migrationService';
+import { savePdfFile } from '../utils/pdfStorage';
 
 const CATEGORIES_KEY = 'alexandria-categories-v2';
 const CACHE_BOOKS_KEY = 'alexandria-books-cache-v2';
@@ -144,6 +145,9 @@ export function useLibrary() {
         contentPath = uploadRes.storagePath;
         resolvedUrl = uploadRes.downloadUrl;
         textContent = uploadRes.textContent || '';
+        if (ext === 'pdf' && bookData.file) {
+          await savePdfFile(bookId, bookData.file);
+        }
       } catch (err) {
         console.error('Failed to process book file:', err);
       }

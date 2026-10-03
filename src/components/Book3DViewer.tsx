@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { PageFlip } from 'page-flip';
+import { pdfjs } from 'react-pdf';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -12,13 +13,16 @@ import {
   Compass,
   Feather,
   Bookmark,
-  Loader2
+  Loader2,
+  Plus,
+  Minus
 } from 'lucide-react';
 import { playRealisticPageTurn, initPaperAudio } from '../utils/paperAudio';
 
 interface Book3DViewerProps {
   pdfDocument?: any;
   pdfPagesCount?: number;
+  pdfUrl?: string;
   isLoading?: boolean;
   onPageChange?: (page: number, total: number) => void;
   title?: string;
@@ -30,6 +34,7 @@ interface Book3DViewerProps {
 export function Book3DViewer({
   pdfDocument,
   pdfPagesCount,
+  pdfUrl,
   isLoading = false,
   onPageChange,
   title = "Livro Digital",
@@ -42,6 +47,7 @@ export function Book3DViewer({
   const [currentPage, setCurrentPage] = useState<number>(initialPage);
   const [totalPages, setTotalPages] = useState<number>(8);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [zoomLevel, setZoomLevel] = useState<number>(1.0);
   const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(false);
   const [dimensions, setDimensions] = useState({ width: 420, height: 580 });
   const [pageAspectRatio, setPageAspectRatio] = useState<number>(0.714);
@@ -49,7 +55,23 @@ export function Book3DViewer({
   const [loadingProgress, setLoadingProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
   const objectUrlsRef = useRef<string[]>([]);
 
-  const isBusyLoading = isLoading || isLoadingPdf || (!!pdfDocument && pdfPageImages.length === 0);
+  const isBusyLoading = isLoading || isLoadingPdf || ((!!pdfDocument || !!pdfUrl) && pdfPageImages.length === 0);
+
+  // Simulated progress for non-PDF or initial loading states
+  useEffect(() => {
+    if (isBusyLoading && loadingProgress.total === 0) {
+      setLoadingProgress({ current: 1, total: 8 });
+      const interval = setInterval(() => {
+        setLoadingProgress(prev => {
+          if (prev.current < prev.total) {
+            return { ...prev, current: prev.current + 1 };
+          }
+          return prev;
+        });
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [isBusyLoading, loadingProgress.total]);
 
   // Sound ref to avoid re-triggering effects
   const soundEnabledRef = useRef(soundEnabled);
@@ -87,52 +109,28 @@ export function Book3DViewer({
   const calculateDimensions = useCallback(() => {
     if (!mountContainerRef.current) return;
     const parent = mountContainerRef.current.parentElement || mountContainerRef.current;
-    // Leave adequate padding for margins, navigation arrows and header/footer
     const availableWidth = Math.max(280, (parent.clientWidth || window.innerWidth) - 80);
     const availableHeight = Math.max(280, (parent.clientHeight || window.innerHeight) - 100);
-    const isPortrait = window.innerWidth < 880;
+    const isPortrait = false;
 
     const ratio = Math.max(0.35, Math.min(3.0, pageAspectRatio));
 
-    let w: number;
-    let h: number;
+    let testW = availableWidth / 2;
+    let testH = testW / ratio;
 
-    if (isPortrait) {
-      // Single page view on mobile/portrait
-      let testW = Math.min(availableWidth, 650);
-      let testH = testW / ratio;
+    if (testH > availableHeight) {
+      testH = availableHeight;
+      testW = testH * ratio;
+    }
 
-      if (testH > availableHeight) {
-        testH = availableHeight;
-        testW = testH * ratio;
-      }
-
-      w = testW;
-      h = testH;
-    } else {
-      // Two-page spread on desktop (total spread width = 2 * w)
-      // Fit both width (2 * w <= availableWidth) and height (h <= availableHeight) perfectly
-      let testW = availableWidth / 2;
-      let testH = testW / ratio;
-
-      if (testH > availableHeight) {
-        testH = availableHeight;
-        testW = testH * ratio;
-      }
-
-      // Safeguard total spread width
-      if (testW * 2 > availableWidth) {
-        testW = availableWidth / 2;
-        testH = testW / ratio;
-      }
-
-      w = testW;
-      h = testH;
+    if (testW * 2 > availableWidth) {
+      testW = availableWidth / 2;
+      testH = testW / ratio;
     }
 
     setDimensions({
-      width: Math.max(140, Math.floor(w)),
-      height: Math.max(180, Math.floor(h))
+      width: Math.max(140, Math.floor(testW)),
+      height: Math.max(180, Math.floor(testH))
     });
   }, [pageAspectRatio]);
 
@@ -142,10 +140,10 @@ export function Book3DViewer({
     return () => window.removeEventListener('resize', calculateDimensions);
   }, [calculateDimensions]);
 
-  // Render PDF pages to high-res image buffers if pdfDocument exists
+  // Render PDF pages to high-res image buffers if pdfDocument or pdfUrl exists
   useEffect(() => {
     let active = true;
-    if (!pdfDocument || !pdfPagesCount) {
+    if (!pdfDocument && !pdfUrl) {
       setPdfPageImages([]);
       return;
     }
@@ -153,85 +151,106 @@ export function Book3DViewer({
     async function loadPdf() {
       setIsLoadingPdf(true);
       try {
-        const pagesToLoad = Math.min(pdfPagesCount || 1, 50);
-        setLoadingProgress({ current: 0, total: pagesToLoad });
+        let doc = pdfDocument;
+        if (!doc && pdfUrl) {
+          const loadingTask = pdfjs.getDocument(pdfUrl);
+          doc = await loadingTask.promise;
+        }
+        if (!doc) {
+          if (active) {
+            setPdfPageImages([]);
+            setIsLoadingPdf(false);
+          }
+          return;
+        }
+
+        const numPages = doc.numPages || pdfPagesCount || 1;
+        // Open book as soon as first 10 pages are ready so user is never kept waiting
+        const initialBatch = Math.min(numPages, 10);
+        setLoadingProgress({ current: 0, total: numPages });
 
         // Detect true aspect ratio from first page
-        const firstPage = await pdfDocument.getPage(1);
+        const firstPage = await doc.getPage(1);
         const unscaledViewport = firstPage.getViewport({ scale: 1.0 });
         const detectedRatio = unscaledViewport.width / unscaledViewport.height;
         if (detectedRatio && !isNaN(detectedRatio) && detectedRatio > 0) {
           setPageAspectRatio(detectedRatio);
         }
 
-        // Calculate optimal display scale based on container width and device pixel ratio
-        // Targets ~1200px-1500px resolution, which gives retina-sharp clarity without wasting CPU/RAM
         const targetPagePixelWidth = Math.max(1000, Math.min(1600, (dimensions.width || 500) * 2.5));
-        const renderScale = Math.max(1.4, Math.min(2.8, targetPagePixelWidth / (unscaledViewport.width || 600)));
+        const renderScale = Math.max(1.2, Math.min(2.5, targetPagePixelWidth / (unscaledViewport.width || 600)));
 
         // Revoke previous URLs if any
         objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
         objectUrlsRef.current = [];
 
-        const images: string[] = new Array(pagesToLoad);
-        let completedCount = 0;
+        const images: string[] = new Array(numPages);
 
-        // Render in concurrent batches of 4 pages
-        const BATCH_SIZE = 4;
-        for (let batchStart = 1; batchStart <= pagesToLoad; batchStart += BATCH_SIZE) {
-          if (!active) return;
-          const batchEnd = Math.min(pagesToLoad, batchStart + BATCH_SIZE - 1);
-          const batchPromises = [];
+        // Render page sequentially (prevents pdf.js worker locks and canvas deadlocks)
+        async function renderSinglePage(pageNum: number): Promise<string | null> {
+          try {
+            const page = (pageNum === 1) ? firstPage : await doc.getPage(pageNum);
+            const viewport = page.getViewport({ scale: renderScale });
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.floor(viewport.width);
+            canvas.height = Math.floor(viewport.height);
+            const ctx = canvas.getContext('2d', { alpha: false });
+            if (!ctx) return null;
 
-          for (let pageNum = batchStart; pageNum <= batchEnd; pageNum++) {
-            const pNum = pageNum;
-            batchPromises.push((async () => {
-              try {
-                const page = (pNum === 1) ? firstPage : await pdfDocument.getPage(pNum);
-                const viewport = page.getViewport({ scale: renderScale });
-                const canvas = document.createElement('canvas');
-                canvas.width = Math.floor(viewport.width);
-                canvas.height = Math.floor(viewport.height);
-                const ctx = canvas.getContext('2d', { alpha: false });
-                if (ctx) {
-                  ctx.imageSmoothingEnabled = true;
-                  ctx.imageSmoothingQuality = 'high';
-                  ctx.fillStyle = '#ffffff';
-                  ctx.fillRect(0, 0, canvas.width, canvas.height);
-                  await page.render({ canvasContext: ctx, viewport }).promise;
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'medium';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                  const blob = await new Promise<Blob | null>(resolve => {
-                    canvas.toBlob(resolve, 'image/jpeg', 0.92);
-                  });
+            const renderTask = page.render({ canvasContext: ctx, viewport });
+            await renderTask.promise;
 
-                  if (blob && active) {
-                    const objectUrl = URL.createObjectURL(blob);
-                    images[pNum - 1] = objectUrl;
-                    objectUrlsRef.current.push(objectUrl);
-                  }
-                }
-              } catch (pageErr) {
-                console.error(`Error rendering page ${pNum}:`, pageErr);
-              } finally {
-                completedCount++;
-                if (active) {
-                  setLoadingProgress({ current: completedCount, total: pagesToLoad });
-                }
-              }
-            })());
+            const blob = await new Promise<Blob | null>(resolve => {
+              canvas.toBlob(resolve, 'image/jpeg', 0.88);
+            });
+
+            if (blob && active) {
+              const objectUrl = URL.createObjectURL(blob);
+              objectUrlsRef.current.push(objectUrl);
+              return objectUrl;
+            }
+          } catch (err) {
+            console.error(`Error rendering page ${pageNum}:`, err);
           }
+          return null;
+        }
 
-          await Promise.all(batchPromises);
+        // Render first 10 pages sequentially for instant book opening (~150ms)
+        for (let pNum = 1; pNum <= initialBatch; pNum++) {
+          if (!active) return;
+          const url = await renderSinglePage(pNum);
+          if (url) images[pNum - 1] = url;
+          if (active) setLoadingProgress({ current: pNum, total: numPages });
         }
 
         if (active) {
-          // Filter out any undefined holes
-          const validImages = images.filter(Boolean);
-          setPdfPageImages(validImages);
+          setPdfPageImages([...images]);
+          setIsLoadingPdf(false); // Book opens on screen immediately!
+        }
+
+        // Render remaining pages in background sequentially
+        if (numPages > initialBatch && active) {
+          (async () => {
+            for (let pNum = initialBatch + 1; pNum <= numPages; pNum++) {
+              if (!active) return;
+              const url = await renderSinglePage(pNum);
+              if (url) images[pNum - 1] = url;
+
+              // Batch update UI every 4 pages or at total
+              if (active && (pNum % 4 === 0 || pNum === numPages)) {
+                setPdfPageImages([...images]);
+                setLoadingProgress({ current: pNum, total: numPages });
+              }
+            }
+          })();
         }
       } catch (err) {
         console.error('PDF rendering to 3D book error:', err);
-      } finally {
         if (active) setIsLoadingPdf(false);
       }
     }
@@ -240,7 +259,7 @@ export function Book3DViewer({
     return () => {
       active = false;
     };
-  }, [pdfDocument, pdfPagesCount]);
+  }, [pdfDocument, pdfUrl, pdfPagesCount, dimensions.width]);
 
   // Build and mount PageFlip into isolated container
   useEffect(() => {
@@ -257,7 +276,7 @@ export function Book3DViewer({
     }
     container.innerHTML = '';
 
-    const isPortrait = window.innerWidth < 880;
+    const isPortrait = false;
     const hasPdf = pdfPageImages.length > 0;
     const total = hasPdf ? pdfPageImages.length : 8;
     setTotalPages(total);
@@ -342,20 +361,20 @@ export function Book3DViewer({
         `,
         // Page 2: Preface
         `
-        <div class="book-leaf-page" style="width:${dimensions.width}px; height:${dimensions.height}px; background: ${paperTheme === 'vintage' ? '#fcf7ed' : paperTheme === 'night' ? '#181d28' : '#ffffff'}; color: ${paperTheme === 'night' ? '#cbd5e1' : '#2b2118'}; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; font-family: serif; position: relative;">
+        <div class="book-leaf-page" style="width:${dimensions.width}px; height:${dimensions.height}px; background: ${paperTheme === 'vintage' ? '#fcf7ed' : paperTheme === 'night' ? '#181d28' : '#ffffff'}; color: ${paperTheme === 'night' ? '#cbd5e1' : '#1a1612'}; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; font-family: serif; position: relative;">
           <div style="position: absolute; top: 0; bottom: 0; right: 0; width: 24px; background: linear-gradient(to left, rgba(0,0,0,0.12), transparent); pointer-events: none;"></div>
           <div>
-            <p style="font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: #9ca3af; text-align: center;">Introdução</p>
+            <p style="font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #b45309; font-weight: bold; text-align: center;">Introdução</p>
             <h2 style="font-size: 18px; font-weight: bold; text-align: center; margin: 4px 0 12px 0; color: ${paperTheme === 'night' ? '#fff' : '#1c120c'};">A Arte de Folhear</h2>
-            <div style="width: 24px; height: 1px; background: #b45309; margin: 0 auto 16px auto; opacity: 0.5;"></div>
-            <p style="font-size: 11.5px; line-height: 1.6; text-align: justify; margin-bottom: 12px;">
-              <span style="float: left; font-size: 32px; line-height: 1; padding-right: 6px; color: #b45309; font-weight: bold;">H</span>á uma magia silenciosa no gesto de virar uma página. Não é apenas a passagem de dados ou caracteres; é uma jornada física, onde o tempo desacelera e cada folha revela um novo horizonte.
+            <div style="width: 28px; height: 1.5px; background: #b45309; margin: 0 auto 16px auto; opacity: 0.7;"></div>
+            <p style="font-size: 12px; line-height: 1.65; text-align: justify; margin-bottom: 12px; color: ${paperTheme === 'night' ? '#e2e8f0' : '#1a1612'};">
+              <span style="float: left; font-size: 36px; line-height: 0.85; padding-right: 8px; color: #b45309; font-weight: bold; font-family: serif;">H</span>á uma magia silenciosa no gesto de virar uma página. Não é apenas a passagem de dados ou caracteres; é uma jornada física, onde o tempo desacelera e cada folha revela um novo horizonte.
             </p>
-            <p style="font-size: 11.5px; line-height: 1.6; text-align: justify;">
+            <p style="font-size: 12px; line-height: 1.65; text-align: justify; color: ${paperTheme === 'night' ? '#e2e8f0' : '#1a1612'};">
               Este leitor tridimensional foi projetado para resgatar a elegância física das grandes enciclopédias e manuscritos clássicos, unindo a física 3D à pureza da leitura atenta.
             </p>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 9px; color: #9ca3af; border-top: 1px solid rgba(156,163,175,0.25); padding-top: 8px;">
+          <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #78350f; font-weight: 600; border-top: 1px solid rgba(180,83,9,0.3); padding-top: 8px;">
             <span>Alexandria Codex</span>
             <span>i</span>
           </div>
@@ -363,33 +382,33 @@ export function Book3DViewer({
         `,
         // Page 3: Table of Contents
         `
-        <div class="book-leaf-page" style="width:${dimensions.width}px; height:${dimensions.height}px; background: ${paperTheme === 'vintage' ? '#fcf7ed' : paperTheme === 'night' ? '#181d28' : '#ffffff'}; color: ${paperTheme === 'night' ? '#cbd5e1' : '#2b2118'}; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; font-family: serif; position: relative;">
+        <div class="book-leaf-page" style="width:${dimensions.width}px; height:${dimensions.height}px; background: ${paperTheme === 'vintage' ? '#fcf7ed' : paperTheme === 'night' ? '#181d28' : '#ffffff'}; color: ${paperTheme === 'night' ? '#cbd5e1' : '#1a1612'}; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; font-family: serif; position: relative;">
           <div style="position: absolute; top: 0; bottom: 0; left: 0; width: 24px; background: linear-gradient(to right, rgba(0,0,0,0.12), transparent); pointer-events: none;"></div>
           <div>
             <h2 style="font-size: 16px; font-weight: bold; margin-bottom: 14px; color: ${paperTheme === 'night' ? '#fff' : '#1c120c'};">Sumário Geral</h2>
-            <div style="font-size: 11px; line-height: 2.2;">
-              <div style="display:flex; justify-content:space-between; border-bottom:1px dashed rgba(156,163,175,0.4);">
+            <div style="font-size: 11.5px; line-height: 2.2;">
+              <div style="display:flex; justify-content:space-between; border-bottom:1px dashed rgba(180,83,9,0.35); font-weight: 500;">
                 <span>Capítulo 1: A Geometria da Mente</span>
-                <span style="font-family: monospace;">03</span>
+                <span style="font-family: monospace; color: #b45309; font-weight: bold;">03</span>
               </div>
-              <div style="display:flex; justify-content:space-between; border-bottom:1px dashed rgba(156,163,175,0.4);">
+              <div style="display:flex; justify-content:space-between; border-bottom:1px dashed rgba(180,83,9,0.35); font-weight: 500;">
                 <span>Capítulo 2: Cartografia dos Saberes</span>
-                <span style="font-family: monospace;">04</span>
+                <span style="font-family: monospace; color: #b45309; font-weight: bold;">04</span>
               </div>
-              <div style="display:flex; justify-content:space-between; border-bottom:1px dashed rgba(156,163,175,0.4);">
+              <div style="display:flex; justify-content:space-between; border-bottom:1px dashed rgba(180,83,9,0.35); font-weight: 500;">
                 <span>Capítulo 3: O Cosmos e a Linguagem</span>
-                <span style="font-family: monospace;">05</span>
+                <span style="font-family: monospace; color: #b45309; font-weight: bold;">05</span>
               </div>
-              <div style="display:flex; justify-content:space-between; border-bottom:1px dashed rgba(156,163,175,0.4);">
+              <div style="display:flex; justify-content:space-between; border-bottom:1px dashed rgba(180,83,9,0.35); font-weight: 500;">
                 <span>Epílogo: A Biblioteca Infinita</span>
-                <span style="font-family: monospace;">06</span>
+                <span style="font-family: monospace; color: #b45309; font-weight: bold;">06</span>
               </div>
             </div>
-            <div style="margin-top: 18px; padding: 10px; background: rgba(245,158,11,0.08); border-left: 3px solid #d97706; border-radius: 4px; font-size: 10px; line-height: 1.4;">
+            <div style="margin-top: 18px; padding: 10px; background: rgba(245,158,11,0.12); border-left: 3px solid #b45309; border-radius: 4px; font-size: 10.5px; line-height: 1.4; color: #1a1612;">
               <b>Controles:</b> Arraste com o mouse/dedo ou use as setas ← e → do teclado.
             </div>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 9px; color: #9ca3af; border-top: 1px solid rgba(156,163,175,0.25); padding-top: 8px;">
+          <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #78350f; font-weight: 600; border-top: 1px solid rgba(180,83,9,0.3); padding-top: 8px;">
             <span>Sumário</span>
             <span>ii</span>
           </div>
@@ -397,12 +416,12 @@ export function Book3DViewer({
         `,
         // Page 4: Chapter 1
         `
-        <div class="book-leaf-page" style="width:${dimensions.width}px; height:${dimensions.height}px; background: ${paperTheme === 'vintage' ? '#fcf7ed' : paperTheme === 'night' ? '#181d28' : '#ffffff'}; color: ${paperTheme === 'night' ? '#cbd5e1' : '#2b2118'}; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; font-family: serif; position: relative;">
+        <div class="book-leaf-page" style="width:${dimensions.width}px; height:${dimensions.height}px; background: ${paperTheme === 'vintage' ? '#fcf7ed' : paperTheme === 'night' ? '#181d28' : '#ffffff'}; color: ${paperTheme === 'night' ? '#cbd5e1' : '#1a1612'}; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; font-family: serif; position: relative;">
           <div style="position: absolute; top: 0; bottom: 0; right: 0; width: 24px; background: linear-gradient(to left, rgba(0,0,0,0.12), transparent); pointer-events: none;"></div>
           <div>
-            <p style="font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: #b45309; font-weight: bold;">Capítulo I</p>
+            <p style="font-size: 9.5px; text-transform: uppercase; letter-spacing: 2px; color: #b45309; font-weight: bold;">Capítulo I</p>
             <h3 style="font-size: 17px; font-weight: bold; margin: 4px 0 10px 0; color: ${paperTheme === 'night' ? '#fff' : '#1c120c'};">A Geometria da Mente</h3>
-            <p style="font-size: 11px; line-height: 1.5; text-align: justify; margin-bottom: 10px;">
+            <p style="font-size: 11.5px; line-height: 1.6; text-align: justify; margin-bottom: 10px; color: ${paperTheme === 'night' ? '#e2e8f0' : '#1a1612'};">
               Todo pensamento constrói uma arquitetura invisível. Quando os matemáticos traçavam círculos na areia de Alexandria, estavam mapeando as leis do cosmos.
             </p>
             <div style="margin: 10px 0; padding: 12px; background: #111827; border-radius: 8px; text-align: center; color: #fde68a;">
@@ -411,13 +430,13 @@ export function Book3DViewer({
                 <polygon points="50,10 72,48 28,48" stroke-width="1.5" />
                 <circle cx="50" cy="30" r="2" style="fill: #f59e0b;" />
               </svg>
-              <p style="font-family: monospace; font-size: 8.5px; opacity: 0.8; margin-top: 4px;">Figura 1.1: Razão Áurea & Harmonia</p>
+              <p style="font-family: monospace; font-size: 8.5px; opacity: 0.9; margin-top: 4px; color: #fde68a;">Figura 1.1: Razão Áurea & Harmonia</p>
             </div>
-            <p style="font-size: 11px; line-height: 1.5; text-align: justify;">
+            <p style="font-size: 11.5px; line-height: 1.6; text-align: justify; color: ${paperTheme === 'night' ? '#e2e8f0' : '#1a1612'};">
               A proporção observada na concha do Nautilus replica-se na curvatura suave das folhas que agora você manuseia.
             </p>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 9px; color: #9ca3af; border-top: 1px solid rgba(156,163,175,0.25); padding-top: 8px;">
+          <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #78350f; font-weight: 600; border-top: 1px solid rgba(180,83,9,0.3); padding-top: 8px;">
             <span>Geometria</span>
             <span>3</span>
           </div>
@@ -425,23 +444,23 @@ export function Book3DViewer({
         `,
         // Page 5: Chapter 2
         `
-        <div class="book-leaf-page" style="width:${dimensions.width}px; height:${dimensions.height}px; background: ${paperTheme === 'vintage' ? '#fcf7ed' : paperTheme === 'night' ? '#181d28' : '#ffffff'}; color: ${paperTheme === 'night' ? '#cbd5e1' : '#2b2118'}; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; font-family: serif; position: relative;">
+        <div class="book-leaf-page" style="width:${dimensions.width}px; height:${dimensions.height}px; background: ${paperTheme === 'vintage' ? '#fcf7ed' : paperTheme === 'night' ? '#181d28' : '#ffffff'}; color: ${paperTheme === 'night' ? '#cbd5e1' : '#1a1612'}; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; font-family: serif; position: relative;">
           <div style="position: absolute; top: 0; bottom: 0; left: 0; width: 24px; background: linear-gradient(to right, rgba(0,0,0,0.12), transparent); pointer-events: none;"></div>
           <div>
-            <p style="font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: #b45309; font-weight: bold;">Capítulo II</p>
+            <p style="font-size: 9.5px; text-transform: uppercase; letter-spacing: 2px; color: #b45309; font-weight: bold;">Capítulo II</p>
             <h3 style="font-size: 17px; font-weight: bold; margin: 4px 0 10px 0; color: ${paperTheme === 'night' ? '#fff' : '#1c120c'};">Cartografia dos Saberes</h3>
-            <p style="font-size: 11px; line-height: 1.5; text-align: justify; margin-bottom: 10px;">
+            <p style="font-size: 11.5px; line-height: 1.6; text-align: justify; margin-bottom: 10px; color: ${paperTheme === 'night' ? '#e2e8f0' : '#1a1612'};">
               Os mapas demarcam os limites da curiosidade. No Grande Farol, astrônomos perscrutavam constelações cuja luz guiava frotas de mercadores e filósofos.
             </p>
-            <div style="background: rgba(245,158,11,0.08); padding: 10px; border-radius: 6px; border: 1px solid rgba(245,158,11,0.2); margin: 8px 0; font-size: 10.5px;">
+            <div style="background: rgba(245,158,11,0.1); padding: 10px; border-radius: 6px; border: 1px solid rgba(180,83,9,0.3); margin: 8px 0; font-size: 11px;">
               <b style="color: #92400e;">Cálculo de Eratóstenes</b>
-              <p style="margin-top: 2px; color: #4b5563;">Mediu a circunferência da Terra há mais de 2.200 anos com precisão espantosa usando sombras solares.</p>
+              <p style="margin-top: 2px; color: #1a1612; line-height: 1.5;">Mediu a circunferência da Terra há mais de 2.200 anos com precisão espantosa usando sombras solares.</p>
             </div>
-            <p style="font-size: 11px; line-height: 1.5; text-align: justify;">
+            <p style="font-size: 11.5px; line-height: 1.6; text-align: justify; color: ${paperTheme === 'night' ? '#e2e8f0' : '#1a1612'};">
               Cada professor em sua plataforma preserva este legado ao responder e contextualizar conhecimentos em diálogos vivos.
             </p>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 9px; color: #9ca3af; border-top: 1px solid rgba(156,163,175,0.25); padding-top: 8px;">
+          <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #78350f; font-weight: 600; border-top: 1px solid rgba(180,83,9,0.3); padding-top: 8px;">
             <span>Cartografia</span>
             <span>4</span>
           </div>
@@ -449,24 +468,24 @@ export function Book3DViewer({
         `,
         // Page 6: Chapter 3
         `
-        <div class="book-leaf-page" style="width:${dimensions.width}px; height:${dimensions.height}px; background: ${paperTheme === 'vintage' ? '#fcf7ed' : paperTheme === 'night' ? '#181d28' : '#ffffff'}; color: ${paperTheme === 'night' ? '#cbd5e1' : '#2b2118'}; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; font-family: serif; position: relative;">
+        <div class="book-leaf-page" style="width:${dimensions.width}px; height:${dimensions.height}px; background: ${paperTheme === 'vintage' ? '#fcf7ed' : paperTheme === 'night' ? '#181d28' : '#ffffff'}; color: ${paperTheme === 'night' ? '#cbd5e1' : '#1a1612'}; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; font-family: serif; position: relative;">
           <div style="position: absolute; top: 0; bottom: 0; right: 0; width: 24px; background: linear-gradient(to left, rgba(0,0,0,0.12), transparent); pointer-events: none;"></div>
           <div>
-            <p style="font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: #b45309; font-weight: bold;">Capítulo III</p>
+            <p style="font-size: 9.5px; text-transform: uppercase; letter-spacing: 2px; color: #b45309; font-weight: bold;">Capítulo III</p>
             <h3 style="font-size: 17px; font-weight: bold; margin: 4px 0 10px 0; color: ${paperTheme === 'night' ? '#fff' : '#1c120c'};">O Cosmos e a Linguagem</h3>
-            <p style="font-size: 11px; line-height: 1.5; text-align: justify; margin-bottom: 8px;">
+            <p style="font-size: 11.5px; line-height: 1.6; text-align: justify; margin-bottom: 8px; color: ${paperTheme === 'night' ? '#e2e8f0' : '#1a1612'};">
               As palavras são os vetores do espírito. Ao transformarmos textos em embeddings, calculamos a afinidade entre ideias:
             </p>
-            <div style="background: #111827; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 9px; color: #86efac; margin: 8px 0;">
+            <div style="background: #111827; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 9.5px; color: #86efac; margin: 8px 0;">
               <span style="color:#9ca3af;">// Similaridade Vetorial</span><br/>
               cos(θ) = (A · B) / (||A|| * ||B||);<br/>
               <span style="color:#fde68a;">score &gt; 0.50 → Relevante</span>
             </div>
-            <p style="font-size: 11px; line-height: 1.5; text-align: justify;">
+            <p style="font-size: 11.5px; line-height: 1.6; text-align: justify; color: ${paperTheme === 'night' ? '#e2e8f0' : '#1a1612'};">
               O motor de busca em vetor recupera trechos precisos para formular respostas fundamentadas em seus documentos.
             </p>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 9px; color: #9ca3af; border-top: 1px solid rgba(156,163,175,0.25); padding-top: 8px;">
+          <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #78350f; font-weight: 600; border-top: 1px solid rgba(180,83,9,0.3); padding-top: 8px;">
             <span>Linguagem</span>
             <span>5</span>
           </div>
@@ -474,19 +493,19 @@ export function Book3DViewer({
         `,
         // Page 7: Epilogue
         `
-        <div class="book-leaf-page" style="width:${dimensions.width}px; height:${dimensions.height}px; background: ${paperTheme === 'vintage' ? '#fcf7ed' : paperTheme === 'night' ? '#181d28' : '#ffffff'}; color: ${paperTheme === 'night' ? '#cbd5e1' : '#2b2118'}; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; font-family: serif; position: relative;">
+        <div class="book-leaf-page" style="width:${dimensions.width}px; height:${dimensions.height}px; background: ${paperTheme === 'vintage' ? '#fcf7ed' : paperTheme === 'night' ? '#181d28' : '#ffffff'}; color: ${paperTheme === 'night' ? '#cbd5e1' : '#1a1612'}; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; font-family: serif; position: relative;">
           <div style="position: absolute; top: 0; bottom: 0; left: 0; width: 24px; background: linear-gradient(to right, rgba(0,0,0,0.12), transparent); pointer-events: none;"></div>
           <div style="text-align: center; margin-top: 10px;">
             <span style="font-size: 24px; color: #b45309;">✧</span>
             <h3 style="font-size: 17px; font-weight: bold; margin: 8px 0 12px 0; color: ${paperTheme === 'night' ? '#fff' : '#1c120c'};">A Biblioteca Infinita</h3>
-            <p style="font-size: 11.5px; line-height: 1.6; text-align: justify; margin-bottom: 12px;">
+            <p style="font-size: 12px; line-height: 1.65; text-align: justify; margin-bottom: 12px; color: ${paperTheme === 'night' ? '#e2e8f0' : '#1a1612'};">
               Jorge Luis Borges concebeu o universo como uma biblioteca infinita de galerias hexagonais.
             </p>
-            <p style="font-size: 11.5px; line-height: 1.6; text-align: justify;">
+            <p style="font-size: 12px; line-height: 1.65; text-align: justify; color: ${paperTheme === 'night' ? '#e2e8f0' : '#1a1612'};">
               Aqui, cada livro abre portais para o estudo concentrado, anotações instantâneas e a sensação tátil da leitura.
             </p>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 9px; color: #9ca3af; border-top: 1px solid rgba(156,163,175,0.25); padding-top: 8px;">
+          <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #78350f; font-weight: 600; border-top: 1px solid rgba(180,83,9,0.3); padding-top: 8px;">
             <span>Epílogo</span>
             <span>6</span>
           </div>
@@ -527,10 +546,10 @@ export function Book3DViewer({
         minHeight: Math.min(100, dimensions.height),
         maxHeight: Math.max(1800, dimensions.height),
         maxShadowOpacity: 0.22,
-        showCover: true,
+        showCover: false,
         showPageCorners: false,
         mobileScrollSupport: false,
-        usePortrait: isPortrait,
+        usePortrait: false,
         startPage: Math.min(initialPage, total - 1),
         drawShadow: true,
         flippingTime: 650,
@@ -554,8 +573,7 @@ export function Book3DViewer({
       spineEl.style.pointerEvents = 'none';
       // In front of resting pages (z-index 1), but strictly behind turning pages (z-index 5/50) and bottom page (z-index 3)
       spineEl.style.zIndex = '2';
-      const isStartSpread = !isPortrait && initialPage > 0 && initialPage < total - 1;
-      spineEl.style.display = isStartSpread ? 'block' : 'none';
+      spineEl.style.display = 'block';
 
       spineEl.innerHTML = `
         <div style="position: absolute; inset: 0; background: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.05) 15%, rgba(0,0,0,0.20) 38%, rgba(0,0,0,0.48) 49%, rgba(0,0,0,0.58) 50%, rgba(0,0,0,0.48) 51%, rgba(0,0,0,0.20) 62%, rgba(0,0,0,0.05) 85%, transparent 100%);"></div>
@@ -621,16 +639,12 @@ export function Book3DViewer({
 
       flip.on('flip', (e: any) => {
         setCurrentPage(e.data);
-        if (soundEnabledRef.current) {
-          playRealisticPageTurn(0.85);
-        }
         if (onPageChange) {
           onPageChange(e.data + 1, total);
         }
         // Update spine groove visibility: visible only on two-page open spreads
         if (spineEl) {
-          const isOpenSpread = !isPortrait && e.data > 0 && e.data < total - 1;
-          spineEl.style.display = isOpenSpread ? 'block' : 'none';
+          spineEl.style.display = 'block';
         }
       });
 
@@ -653,6 +667,7 @@ export function Book3DViewer({
   }, [dimensions, pdfPageImages, paperTheme, initialPage, onPageChange, isBusyLoading]);
 
   const handlePrevPage = useCallback(() => {
+    if (soundEnabledRef.current) playRealisticPageTurn(0.85);
     if (!flipInstanceRef.current) return;
     try {
       flipInstanceRef.current.flipPrev('top');
@@ -662,6 +677,7 @@ export function Book3DViewer({
   }, []);
 
   const handleNextPage = useCallback(() => {
+    if (soundEnabledRef.current) playRealisticPageTurn(0.85);
     if (!flipInstanceRef.current) return;
     try {
       flipInstanceRef.current.flipNext('top');
@@ -686,6 +702,15 @@ export function Book3DViewer({
         handlePrevPage();
       } else if (e.key === 'f' || e.key === 'F') {
         toggleFullscreen();
+      } else if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        setZoomLevel(z => Math.min(2.5, z + 0.2));
+      } else if (e.key === '-') {
+        e.preventDefault();
+        setZoomLevel(z => Math.max(0.7, z - 0.2));
+      } else if (e.key === '0') {
+        e.preventDefault();
+        setZoomLevel(1.0);
       }
     };
 
@@ -749,12 +774,12 @@ export function Book3DViewer({
           </div>
         </div>
       ) : (
-        <div className="flex-1 w-full flex items-center justify-center relative p-2 md:p-4 overflow-hidden">
+        <div className="flex-1 w-full h-full flex items-center justify-center relative p-0.5 overflow-auto">
           {/* Left Arrow Button */}
           <button
             onClick={handlePrevPage}
             disabled={currentPage <= 0}
-            className="absolute left-2 md:left-6 z-30 p-2.5 md:p-3 rounded-full backdrop-blur-xl bg-bg-card/80 border border-border-subtle text-text-muted hover:text-text-primary hover:border-border-strong hover:scale-105 disabled:opacity-0 disabled:pointer-events-none transition-all shadow-xl"
+            className="absolute left-2 md:left-4 z-30 p-3 rounded-full backdrop-blur-xl bg-black/60 border border-white/20 text-white hover:bg-black/90 hover:scale-105 disabled:opacity-0 disabled:pointer-events-none transition-all shadow-2xl"
             title="Página anterior"
           >
             <ChevronLeft size={20} />
@@ -764,15 +789,22 @@ export function Book3DViewer({
           <button
             onClick={handleNextPage}
             disabled={currentPage >= totalPages - 1}
-            className="absolute right-2 md:right-6 z-30 p-2.5 md:p-3 rounded-full backdrop-blur-xl bg-bg-card/80 border border-border-subtle text-text-muted hover:text-text-primary hover:border-border-strong hover:scale-105 disabled:opacity-0 disabled:pointer-events-none transition-all shadow-xl"
+            className="absolute right-2 md:left-auto md:right-4 z-30 p-3 rounded-full backdrop-blur-xl bg-black/60 border border-white/20 text-white hover:bg-black/90 hover:scale-105 disabled:opacity-0 disabled:pointer-events-none transition-all shadow-2xl"
             title="Próxima página"
           >
             <ChevronRight size={20} />
           </button>
 
           {/* Book Desk Surface & Cover Frame */}
-          <div className="relative flex items-center justify-center p-2.5 md:p-3 rounded-2xl bg-[#141416]/90 shadow-[0_25px_70px_rgba(0,0,0,0.85)] border border-white/5 overflow-visible">
-            
+          <div 
+            className="relative flex items-center justify-center p-0.5 rounded-2xl bg-[#121214] shadow-[0_25px_80px_rgba(0,0,0,0.95)] border border-white/10 overflow-hidden max-w-full max-h-full transition-transform duration-200 ease-out origin-center"
+            style={{
+              transform: `scale(${zoomLevel})`,
+              transformOrigin: 'center center'
+            }}
+            onDoubleClick={() => setZoomLevel(z => z === 1.0 ? 1.4 : 1.0)}
+            title="Clique duplo para alternar zoom (100% / 140%)"
+          >
             {/* Spine Groove Shadow (Behind the pages: z-0) */}
             <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-6 z-0 pointer-events-none flex items-center justify-center opacity-70">
               <div className="w-[3px] h-full bg-gradient-to-b from-transparent via-[#000000] to-transparent shadow-[0_0_10px_rgba(0,0,0,0.95)]" />
@@ -791,30 +823,75 @@ export function Book3DViewer({
         </div>
       )}
 
-      {/* Floating Bottom Page Indicator - only rendered when loaded */}
+      {/* Floating Bottom Page & Zoom Controls */}
       {!isBusyLoading && (
         <div className="absolute bottom-3 md:bottom-5 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
-          <div className="flex items-center gap-2 bg-black/75 backdrop-blur-xl border border-white/15 px-3.5 py-1.5 rounded-full shadow-2xl">
+          <div className="flex items-center gap-1.5 md:gap-2 bg-black/80 backdrop-blur-xl border border-white/15 px-3 md:px-4 py-1.5 rounded-full shadow-2xl">
+            {/* Prev Page */}
             <button
               onClick={handlePrevPage}
               disabled={currentPage <= 0}
-              className="p-1 hover:text-white text-white/40 disabled:opacity-20 transition-colors"
+              className="p-1 hover:text-white text-white/50 disabled:opacity-20 transition-colors"
               title="Página anterior"
             >
               <ChevronLeft size={14} />
             </button>
             
-            <span className="text-xs font-bold text-white tracking-wider select-none">
+            {/* Page Count */}
+            <span className="text-xs font-bold text-white tracking-wider select-none px-1">
               {currentPage + 1} <span className="text-white/40 font-normal">/</span> {totalPages}
             </span>
 
+            {/* Next Page */}
             <button
               onClick={handleNextPage}
               disabled={currentPage >= totalPages - 1}
-              className="p-1 hover:text-white text-white/40 disabled:opacity-20 transition-colors"
+              className="p-1 hover:text-white text-white/50 disabled:opacity-20 transition-colors"
               title="Próxima página"
             >
               <ChevronRight size={14} />
+            </button>
+
+            <div className="w-[1px] h-3.5 bg-white/20 my-auto mx-0.5" />
+
+            {/* Zoom Out */}
+            <button
+              onClick={() => setZoomLevel((z) => Math.max(0.7, Number((z - 0.2).toFixed(2))))}
+              disabled={zoomLevel <= 0.75}
+              className="p-1 hover:text-white text-white/50 disabled:opacity-20 transition-colors"
+              title="Reduzir Zoom (-)"
+            >
+              <Minus size={14} />
+            </button>
+
+            {/* Zoom Percentage Indicator / Reset */}
+            <button
+              onClick={() => setZoomLevel(1.0)}
+              className="text-[11px] font-semibold text-white/80 hover:text-white px-1 select-none transition-colors"
+              title="Redefinir Zoom (100%)"
+            >
+              {Math.round(zoomLevel * 100)}%
+            </button>
+
+            {/* Zoom In */}
+            <button
+              onClick={() => setZoomLevel((z) => Math.min(2.5, Number((z + 0.2).toFixed(2))))}
+              disabled={zoomLevel >= 2.4}
+              className="p-1 hover:text-white text-white/50 disabled:opacity-20 transition-colors"
+              title="Aumentar Zoom (+)"
+            >
+              <Plus size={14} />
+            </button>
+
+            <div className="w-[1px] h-3.5 bg-white/20 my-auto mx-0.5" />
+
+            {/* Fullscreen Toggle */}
+            <button
+              onClick={toggleFullscreen}
+              className="p-1 hover:text-white text-white/50 transition-colors"
+              title={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+            >
+              {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
             </button>
           </div>
         </div>

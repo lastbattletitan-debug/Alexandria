@@ -69,8 +69,13 @@ export function MarkdownViewer({
         if (!text && book.contentPath) {
           text = await downloadStorageText(book.contentPath);
         } else if (!text && book.url) {
-          const res = await fetch(book.url);
-          text = await res.text();
+          try {
+            const res = await fetch(book.url);
+            text = await res.text();
+          } catch (fetchErr) {
+            console.warn('Failed to fetch book url:', fetchErr);
+            text = `# ${book.title}\n\n*O link do documento expirou ou está inacessível. Explore os capítulos padrão abaixo.*`;
+          }
         } else if (!text && book.file) {
           text = await book.file.text();
         }

@@ -5,11 +5,13 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { extractTextFromPdf } from '../utils/pdfUtils';
 import { Book3DViewer } from './Book3DViewer';
+import { getPdfFile, savePdfFile } from '../utils/pdfStorage';
 
 // Configure worker
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface PdfViewerProps {
+  bookId?: string;
   url: string;
   title?: string;
   initialPage?: number;
@@ -31,6 +33,7 @@ interface PdfViewerProps {
 }
 
 export function PdfViewer({ 
+  bookId,
   url, 
   title, 
   initialPage = 1,
@@ -50,6 +53,63 @@ export function PdfViewer({
   rating,
   onUpdateRating
 }: PdfViewerProps) {
+  const [resolvedUrl, setResolvedUrl] = useState<string>(url);
+  const [pdfDoc, setPdfDoc] = useState<any>(null);
+
+  useEffect(() => {
+    let active = true;
+    async function resolvePdfUrl() {
+      if (bookId) {
+        const storedBlob = await getPdfFile(bookId);
+        if (storedBlob && active) {
+          const blobUrl = URL.createObjectURL(storedBlob);
+          setResolvedUrl(blobUrl);
+          return;
+        }
+      }
+      setResolvedUrl(url);
+    }
+    resolvePdfUrl();
+    return () => {
+      active = false;
+    };
+  }, [bookId, url]);
+
+  // Load PDF Document Proxy whenever resolvedUrl changes so 3D Book viewer always receives a valid pdfDoc
+  useEffect(() => {
+    let active = true;
+    if (!resolvedUrl) return;
+
+    setLoading(true);
+    setError(null);
+
+    const loadingTask = pdfjs.getDocument(resolvedUrl);
+    loadingTask.promise.then((doc) => {
+      if (!active) return;
+      setPdfDoc(doc);
+      setNumPages(doc.numPages);
+      setLoading(false);
+
+      // Detect aspect ratio from first page
+      doc.getPage(1).then((page: any) => {
+        if (!active) return;
+        const vp = page.getViewport({ scale: 1.0 });
+        if (vp.width && vp.height) {
+          setPdfAspectRatio(vp.width / vp.height);
+        }
+      }).catch(() => {});
+    }).catch((err) => {
+      console.error('Error loading PDF document in PdfViewer:', err);
+      if (active) {
+        setError('O arquivo PDF não pôde ser carregado. Por favor, selecione-o novamente.');
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [resolvedUrl]);
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(initialPage || 1);
   const [scale, setScale] = useState(1.0);
@@ -57,7 +117,6 @@ export function PdfViewer({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'single' | 'scroll' | 'book3d'>('book3d');
-  const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [isToolbarVisible, setIsToolbarVisible] = useState(false);
   
   // Search state
@@ -198,7 +257,7 @@ export function PdfViewer({
 
   // Search functionality
   const performSearch = async () => {
-    if (!searchQuery.trim() || !url) return;
+    if (!searchQuery.trim() || !resolvedUrl) return;
     
     setIsSearching(true);
     setSearchResults([]);
@@ -208,7 +267,7 @@ export function PdfViewer({
       // Lazy load text if not already loaded
       let textData = pdfText;
       if (textData.length === 0) {
-        const response = await fetch(url);
+        const response = await fetch(resolvedUrl);
         const blob = await response.blob();
         const arrayBuffer = await blob.arrayBuffer();
         const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
@@ -273,7 +332,7 @@ export function PdfViewer({
 
   function onDocumentLoadError(err: Error) {
     console.error('Error loading PDF:', err);
-    setError('Erro ao carregar o PDF. O arquivo pode estar corrompido ou indisponível.');
+    setError('O link do PDF expirou ou o arquivo não está acessível nesta sessão.');
     setLoading(false);
   }
 
@@ -326,18 +385,18 @@ export function PdfViewer({
         </div>
       )}
 
-      {/* Top Hover Trigger Area (Desktop) */}
+      {/* Top Hover Trigger Area */}
       <div 
-        className="hidden lg:block absolute top-0 left-0 right-0 h-16 z-30 pointer-events-auto"
+        className="absolute top-0 left-0 right-0 h-12 z-30 pointer-events-auto"
         onMouseEnter={() => setIsToolbarVisible(true)}
       />
 
-      {/* Header Bar - Auto-hides on desktop and appears on hover / interaction */}
+      {/* Header Bar - Auto-hides by default and appears on hover / interaction */}
       <div 
         className={`absolute top-0 left-0 right-0 z-40 transition-all duration-300 ease-out transform ${
-          (typeof window !== 'undefined' && window.innerWidth < 1024) || isToolbarVisible || isSearchOpen || isCategoryOpen || isDetailsOpen 
+          isToolbarVisible || isSearchOpen || isCategoryOpen || isDetailsOpen 
             ? 'opacity-100 translate-y-0 pointer-events-auto shadow-2xl' 
-            : 'opacity-0 -translate-y-3 pointer-events-none'
+            : 'opacity-0 -translate-y-full pointer-events-none'
         }`}
         onMouseEnter={() => setIsToolbarVisible(true)}
         onMouseLeave={() => setIsToolbarVisible(false)}
@@ -765,7 +824,7 @@ export function PdfViewer({
           {/* Hidden Document loader to retrieve pdf proxy & page count */}
           <div className="hidden">
             <Document
-              file={url}
+              file={resolvedUrl}
               onLoadSuccess={onDocumentLoadSuccess}
               onLoadError={onDocumentLoadError}
               loading={null}
@@ -774,7 +833,8 @@ export function PdfViewer({
           <Book3DViewer 
             pdfDocument={pdfDoc}
             pdfPagesCount={numPages || undefined}
-            isLoading={loading || (!pdfDoc && !error)}
+            pdfUrl={resolvedUrl}
+            isLoading={loading || (!pdfDoc && !resolvedUrl && !error)}
             soundEnabled={soundEnabled}
             paperTheme={paperTheme}
             title={title}
@@ -800,19 +860,41 @@ export function PdfViewer({
           )}
           
           {error ? (
-              <div className="flex flex-col items-center justify-center h-full text-red-400 gap-2">
-                  <p>{error}</p>
+              <div className="flex flex-col items-center justify-center h-full text-text-primary gap-4 p-6 text-center max-w-md my-auto mx-auto">
+                  <div className="w-14 h-14 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl font-bold shadow-lg">!</div>
+                  <div>
+                    <p className="font-bold text-base mb-1.5">Arquivo PDF não encontrado ou expirado</p>
+                    <p className="text-xs text-text-muted leading-relaxed">Sessões anteriores de navegador expiram links temporários de PDF. Selecione o arquivo PDF do seu livro para carregá-lo novamente com todas as páginas.</p>
+                  </div>
+                  <label className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-xl cursor-pointer shadow-xl transition-all flex items-center gap-2">
+                    Selecionar arquivo PDF
+                    <input 
+                      type="file" 
+                      accept=".pdf" 
+                      className="hidden" 
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file && bookId) {
+                          await savePdfFile(bookId, file);
+                          const freshUrl = URL.createObjectURL(file);
+                          setResolvedUrl(freshUrl);
+                          setLoading(true);
+                          setError(null);
+                        }
+                      }} 
+                    />
+                  </label>
                   <button 
                       onClick={onClose}
-                      className="px-4 py-2 bg-bg-card border border-border-subtle rounded-lg text-text-primary hover:bg-border-subtle transition-colors text-sm"
+                      className="px-4 py-2 bg-bg-card border border-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors text-xs"
                   >
-                      Fechar
+                      Voltar à Estante
                   </button>
               </div>
           ) : (
               <div className={`shadow-2xl border border-border-subtle bg-white transition-all duration-200 ${viewMode === 'scroll' ? 'mb-8' : ''}`}>
                   <Document
-                      file={url}
+                      file={resolvedUrl}
                       onLoadSuccess={onDocumentLoadSuccess}
                       onLoadError={onDocumentLoadError}
                       loading={null}

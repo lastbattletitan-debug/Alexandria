@@ -408,7 +408,7 @@ export default function App() {
                   <motion.div 
                     whileHover={{ y: -8 }}
                     onClick={() => fileInputRef.current?.click()}
-                    className={`bg-bg-card border border-dashed border-white/10 rounded-[12px] lg:rounded-[16px] flex items-center justify-center cursor-pointer hover:bg-white/[0.02] transition-all group ${isMobile ? 'col-span-2 flex-row p-4 gap-4' : 'flex-col p-8 aspect-[2/3] gap-6'}`}
+                    className="bg-bg-card border border-dashed border-white/10 rounded-[24px] lg:rounded-[32px] flex flex-col items-center justify-center aspect-[2/3] p-6 lg:p-8 gap-4 lg:gap-6 cursor-pointer hover:bg-white/[0.02] hover:border-white/20 transition-all group"
                   >
                     <div className="w-10 h-10 lg:w-14 lg:h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                         {isUploading ? <Loader2 className="animate-spin text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" /> : <Plus className="text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />}
@@ -416,7 +416,7 @@ export default function App() {
                     <div className="text-center">
                         <p 
                           className="font-bold text-text-muted uppercase tracking-[0.1em] lg:tracking-[0.2em] text-[10px] lg:text-[11px]"
-                          style={!isMobile ? { fontSize: `${11 * currentZoom}px` } : {}}
+                          style={{ fontSize: `${11 * currentZoom}px` }}
                         >
                           Novo Livro
                         </p>
@@ -521,7 +521,7 @@ export default function App() {
                     <motion.div 
                       whileHover={{ y: -8 }}
                       onClick={() => fileInputRef.current?.click()}
-                      className={`bg-bg-card border border-dashed border-white/10 rounded-[12px] lg:rounded-[16px] flex items-center justify-center cursor-pointer hover:bg-white/[0.02] transition-all group ${isMobile ? 'col-span-2 flex-row p-4 gap-4' : 'flex-col p-8 aspect-[2/3] gap-6'}`}
+                      className="bg-bg-card border border-dashed border-white/10 rounded-[24px] lg:rounded-[32px] flex flex-col items-center justify-center aspect-[2/3] p-6 lg:p-8 gap-4 lg:gap-6 cursor-pointer hover:bg-white/[0.02] hover:border-white/20 transition-all group"
                     >
                       <div className="w-10 h-10 lg:w-14 lg:h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                           {isUploading ? <Loader2 className="animate-spin text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" /> : <Plus className="text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />}
@@ -529,7 +529,7 @@ export default function App() {
                       <div className="text-center">
                           <p 
                             className="font-bold text-text-muted uppercase tracking-[0.1em] lg:tracking-[0.2em] text-[10px] lg:text-[11px]"
-                            style={!isMobile ? { fontSize: `${11 * currentZoom}px` } : {}}
+                            style={{ fontSize: `${11 * currentZoom}px` }}
                           >
                             Novo Livro
                           </p>
@@ -569,7 +569,7 @@ export default function App() {
                 <motion.div 
                   whileHover={{ y: -8 }}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`bg-bg-card border border-dashed border-white/10 rounded-[12px] lg:rounded-[16px] flex items-center justify-center cursor-pointer hover:bg-white/[0.02] transition-all group ${isMobile ? 'col-span-2 flex-row p-4 gap-4' : 'flex-col p-8 aspect-[2/3] gap-6'}`}
+                  className="bg-bg-card border border-dashed border-white/10 rounded-[24px] lg:rounded-[32px] flex flex-col items-center justify-center aspect-[2/3] p-6 lg:p-8 gap-4 lg:gap-6 cursor-pointer hover:bg-white/[0.02] hover:border-white/20 transition-all group"
                 >
                   <div className="w-10 h-10 lg:w-14 lg:h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                     {isUploading ? <Loader2 className="animate-spin text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" /> : <Plus className="text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />}
@@ -577,7 +577,7 @@ export default function App() {
                   <div className="text-center">
                     <p 
                       className="font-bold text-text-muted uppercase tracking-[0.1em] lg:tracking-[0.2em] text-[10px] lg:text-[11px]"
-                      style={!isMobile ? { fontSize: `${11 * currentZoom}px` } : {}}
+                      style={{ fontSize: `${11 * currentZoom}px` }}
                     >
                       Novo Livro
                     </p>
@@ -627,7 +627,7 @@ export default function App() {
           <motion.div 
             whileHover={{ y: -8 }}
             onClick={() => openAddModal(activeTab === 'mentores' ? 'Mentor' : 'Professor')}
-            className={`bg-bg-card border border-dashed border-white/10 rounded-[12px] lg:rounded-[16px] flex items-center justify-center cursor-pointer hover:bg-white/[0.02] transition-all group ${isMobile ? 'col-span-2 flex-row p-4 gap-4' : 'flex-col p-8 aspect-[2/3] gap-6'}`}
+            className="bg-bg-card border border-dashed border-white/10 rounded-[24px] lg:rounded-[32px] flex flex-col items-center justify-center aspect-[2/3] p-6 lg:p-8 gap-4 lg:gap-6 cursor-pointer hover:bg-white/[0.02] hover:border-white/20 transition-all group"
           >
             <div className="w-10 h-10 lg:w-14 lg:h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
               <Plus className="text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />
@@ -635,7 +635,7 @@ export default function App() {
             <div className="text-center">
               <p 
                 className="font-bold text-text-muted uppercase tracking-[0.1em] lg:tracking-[0.2em] text-[10px] lg:text-[11px]"
-                style={!isMobile ? { fontSize: `${11 * currentZoom}px` } : {}}
+                style={{ fontSize: `${11 * currentZoom}px` }}
               >
                 {activeTab === 'mentores' ? 'Novo Mentor' : 'Novo Professor'}
               </p>
@@ -817,7 +817,7 @@ export default function App() {
                 </div>
               </header>
 
-              <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 lg:gap-6 mb-8">
+              <div className="flex flex-row items-center justify-between gap-4 lg:gap-6 mb-8">
                 <div className="bg-bg-card rounded-full p-1 flex lg:p-1.5 items-center border border-border-subtle overflow-x-auto no-scrollbar">
                   {(['professores', 'mentores', 'biblioteca'] as Tab[]).map((tab) => (
                     <button
@@ -843,7 +843,7 @@ export default function App() {
                         openAddModal(activeTab === 'mentores' ? 'Mentor' : 'Professor');
                       }
                     }}
-                    className="flex-1 lg:flex-none flex items-center justify-center gap-2 lg:gap-3 bg-text-primary text-bg-main px-4 lg:px-8 py-3 lg:py-4 rounded-full text-[9px] lg:text-[10px] font-bold uppercase tracking-[0.1em] lg:tracking-[0.15em] hover:opacity-90 transition-all active:scale-95 whitespace-nowrap"
+                    className="flex items-center justify-center gap-2 lg:gap-3 bg-text-primary text-bg-main px-4 lg:px-8 py-3 lg:py-4 rounded-full text-[9px] lg:text-[10px] font-bold uppercase tracking-[0.1em] lg:tracking-[0.15em] hover:opacity-90 transition-all active:scale-95 whitespace-nowrap"
                   >
                     <Plus size={14} />
                     <span className="truncate">
@@ -1022,32 +1022,7 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Mobile Bottom Navigation */}
-        {!selectedTeacher && !brainTeacherId && !topicsTeacherId && (
-          <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-bg-card/95 backdrop-blur-xl border-t border-border-strong z-[40] flex items-center justify-around px-4 pb-safe">
-            <button 
-              onClick={() => setActiveTab('professores')}
-              className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'professores' ? 'text-text-primary' : 'text-text-muted'}`}
-            >
-              <GraduationCap size={20} className={activeTab === 'professores' ? 'scale-110' : ''} />
-              <span className="text-[9px] font-bold uppercase tracking-widest">Profs</span>
-            </button>
-            <button 
-              onClick={() => setActiveTab('mentores')}
-              className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'mentores' ? 'text-text-primary' : 'text-text-muted'}`}
-            >
-              <Users size={20} className={activeTab === 'mentores' ? 'scale-110' : ''} />
-              <span className="text-[9px] font-bold uppercase tracking-widest">Mentores</span>
-            </button>
-            <button 
-              onClick={() => setActiveTab('biblioteca')}
-              className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'biblioteca' ? 'text-text-primary' : 'text-text-muted'}`}
-            >
-              <LibraryIcon size={20} className={activeTab === 'biblioteca' ? 'scale-110' : ''} />
-              <span className="text-[9px] font-bold uppercase tracking-widest">Livros</span>
-            </button>
-          </nav>
-        )}
+
 
         <AnimatePresence>
           {viewingSnippetsBook && (
@@ -1196,6 +1171,7 @@ export default function App() {
                 />
               ) : (
                 <PdfViewer 
+                  bookId={readingBook.id}
                   url={readingBook.url || ''} 
                   title={readingBook.title}
                   initialPage={readingBook.currentPage || 1}
