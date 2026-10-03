@@ -739,23 +739,13 @@ export default function App() {
               exit={{ opacity: 0 }}
               className="flex-1 flex flex-col p-4 lg:p-12 overflow-y-auto pb-24 lg:pb-12"
             >
-              <header className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 lg:gap-8 mb-8 lg:mb-12 sticky top-0 bg-bg-main/80 backdrop-blur-md z-10 py-4">
-                <div className="flex-1 max-w-2xl relative group order-2 lg:order-1">
-                  <Search className="absolute left-4 lg:left-6 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-text-primary transition-colors w-[16px] h-[16px] lg:w-[20px] lg:h-[20px]" />
-                  <input 
-                    type="text" 
-                    placeholder="Procure por professores, matérias ou aulas..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-bg-card border border-border-subtle rounded-xl lg:rounded-2xl py-3 lg:py-4 pl-10 lg:pl-16 pr-4 lg:pr-6 text-xs lg:text-sm focus:outline-none focus:border-border-strong focus:bg-border-subtle transition-all text-text-primary placeholder:text-text-muted"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-4 lg:gap-6 order-1 lg:order-2 w-full lg:w-auto">
+              <header className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 lg:gap-8 mb-6 lg:mb-12 sticky top-0 bg-bg-main/90 backdrop-blur-md z-20 py-3 lg:py-4">
+                <div className="flex items-center justify-between lg:justify-end gap-3 order-1 lg:order-2 w-full lg:w-auto">
                   <div className="flex items-center gap-2 lg:gap-4 ml-auto">
                     <button 
                       onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')}
                       className="p-2 text-text-muted hover:text-text-primary transition-all duration-300 active:scale-90"
+                      title="Alternar Tema"
                     >
                       {theme === 'dark' ? <Sun className="w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" /> : <Moon className="w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />}
                     </button>
@@ -765,6 +755,7 @@ export default function App() {
                       <button 
                         onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                         className="p-2 text-text-muted hover:text-text-primary transition-all duration-300 active:scale-90"
+                        title="Configurações"
                       >
                         <Settings className="w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />
                       </button>
@@ -798,7 +789,7 @@ export default function App() {
                     </div>
                     
                     <div 
-                      className="flex items-center gap-3 lg:gap-4 pl-2 lg:pl-6 border-l border-border-strong cursor-pointer"
+                      className="flex items-center gap-2 lg:gap-4 pl-2 lg:pl-6 border-l border-border-strong cursor-pointer"
                       onClick={() => setIsProfileModalOpen(true)}
                     >
                       <div className="text-right hidden sm:block">
@@ -815,17 +806,30 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+
+                <div className="flex-1 max-w-2xl relative group order-2 lg:order-1 w-full">
+                  <Search className="absolute left-4 lg:left-6 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-text-primary transition-colors w-[16px] h-[16px] lg:w-[20px] lg:h-[20px]" />
+                  <input 
+                    type="text" 
+                    placeholder="Procure por professores, matérias ou aulas..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-bg-card border border-border-subtle rounded-xl lg:rounded-2xl py-3 lg:py-4 pl-10 lg:pl-16 pr-4 lg:pr-6 text-xs lg:text-sm focus:outline-none focus:border-border-strong focus:bg-border-subtle transition-all text-text-primary placeholder:text-text-muted"
+                  />
+                </div>
               </header>
 
-              <div className="flex flex-row items-center justify-between gap-4 lg:gap-6 mb-8">
-                <div className="bg-bg-card rounded-full p-1 flex lg:p-1.5 items-center border border-border-subtle overflow-x-auto no-scrollbar">
+              {/* Navigation Segmented Tabs & Action Button Row */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 lg:gap-6 mb-6 lg:mb-8">
+                {/* Segmented Pill Tabs */}
+                <div className="bg-bg-card rounded-2xl p-1.5 flex items-center border border-border-subtle w-full sm:w-auto">
                   {(['professores', 'mentores', 'biblioteca'] as Tab[]).map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
-                      className={`relative px-4 lg:px-8 py-2 lg:py-2.5 rounded-full text-[9px] lg:text-[10px] font-bold uppercase tracking-[0.15em] lg:tracking-[0.2em] transition-all duration-300 whitespace-nowrap ${
+                      className={`flex-1 sm:flex-initial relative px-4 lg:px-8 py-2.5 lg:py-2.5 rounded-xl text-[10px] lg:text-[10px] font-extrabold uppercase tracking-[0.15em] lg:tracking-[0.2em] transition-all duration-300 text-center whitespace-nowrap ${
                         activeTab === tab 
-                          ? 'bg-border-strong text-text-primary' 
+                          ? 'bg-border-strong text-text-primary shadow-sm' 
                           : 'text-text-muted hover:text-text-primary'
                       }`}
                     >
@@ -834,7 +838,8 @@ export default function App() {
                   ))}
                 </div>
 
-                <div className="flex items-center gap-2 lg:gap-3">
+                {/* Primary Action Button & Options Dropdown */}
+                <div className="flex items-center gap-2.5 lg:gap-3 w-full sm:w-auto">
                   <button
                     onClick={() => {
                       if (activeTab === 'biblioteca') {
@@ -843,18 +848,19 @@ export default function App() {
                         openAddModal(activeTab === 'mentores' ? 'Mentor' : 'Professor');
                       }
                     }}
-                    className="flex items-center justify-center gap-2 lg:gap-3 bg-text-primary text-bg-main px-4 lg:px-8 py-3 lg:py-4 rounded-full text-[9px] lg:text-[10px] font-bold uppercase tracking-[0.1em] lg:tracking-[0.15em] hover:opacity-90 transition-all active:scale-95 whitespace-nowrap"
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-2 lg:gap-3 bg-text-primary text-bg-main px-6 lg:px-8 py-3.5 lg:py-4 rounded-full text-[10px] lg:text-[10px] font-black uppercase tracking-[0.15em] hover:opacity-90 transition-all active:scale-95 whitespace-nowrap"
                   >
-                    <Plus size={14} />
+                    <Plus size={16} />
                     <span className="truncate">
                       {activeTab === 'mentores' ? 'Novo mentor' : activeTab === 'biblioteca' ? 'Novo livro' : 'Novo professor'}
                     </span>
                   </button>
                   
-                  <div className="relative">
+                  <div className="relative shrink-0">
                     <button 
                       onClick={() => setIsMenuOpen(!isMenuOpen)}
-                      className="p-3 lg:p-4 bg-bg-card border border-border-subtle text-text-muted rounded-full hover:bg-border-strong transition-colors"
+                      className="p-3.5 lg:p-4 bg-bg-card border border-border-subtle text-text-muted rounded-full hover:bg-border-strong transition-colors"
+                      title="Opções de Visualização"
                     >
                       <MoreVertical size={18} />
                     </button>

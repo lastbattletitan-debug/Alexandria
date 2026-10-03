@@ -818,8 +818,40 @@ export function PdfViewer({
       </div>
     </div>
 
-      {/* Content Rendering based on ViewMode */}
-      {viewMode === 'book3d' ? (
+      {/* Content Rendering based on ViewMode or Error */}
+      {error ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-text-primary gap-4 p-6 text-center max-w-md my-auto mx-auto z-30">
+          <div className="w-14 h-14 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl font-bold shadow-lg">!</div>
+          <div>
+            <p className="font-bold text-base mb-1.5">Arquivo PDF não encontrado ou expirado</p>
+            <p className="text-xs text-text-muted leading-relaxed">Sessões anteriores do navegador expiram links temporários de PDF. Selecione o arquivo PDF do seu livro para carregá-lo novamente com todas as páginas.</p>
+          </div>
+          <label className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-xl cursor-pointer shadow-xl transition-all flex items-center gap-2">
+            Selecionar arquivo PDF
+            <input 
+              type="file" 
+              accept=".pdf" 
+              className="hidden" 
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (file && bookId) {
+                  await savePdfFile(bookId, file);
+                  const freshUrl = URL.createObjectURL(file);
+                  setResolvedUrl(freshUrl);
+                  setLoading(true);
+                  setError(null);
+                }
+              }} 
+            />
+          </label>
+          <button 
+            onClick={onClose}
+            className="px-4 py-2 bg-bg-card border border-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors text-xs"
+          >
+            Voltar à Estante
+          </button>
+        </div>
+      ) : viewMode === 'book3d' ? (
         <div className="flex-1 w-full h-full relative">
           {/* Hidden Document loader to retrieve pdf proxy & page count */}
           <div className="hidden">
@@ -851,55 +883,22 @@ export function PdfViewer({
       ) : (
         <div className="flex-1 overflow-auto flex justify-center p-4 lg:p-8 bg-bg-main/50 relative">
           {loading && !error && (
-              <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-                  <div className="bg-bg-card/80 backdrop-blur-sm p-4 rounded-xl flex items-center gap-3 border border-border-subtle shadow-lg">
-                      <Loader2 className="animate-spin text-text-primary" />
-                      <span className="text-sm font-medium text-text-primary">Carregando documento...</span>
-                  </div>
+            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+              <div className="bg-bg-card/80 backdrop-blur-sm p-4 rounded-xl flex items-center gap-3 border border-border-subtle shadow-lg">
+                <Loader2 className="animate-spin text-text-primary" />
+                <span className="text-sm font-medium text-text-primary">Carregando documento...</span>
               </div>
+            </div>
           )}
           
-          {error ? (
-              <div className="flex flex-col items-center justify-center h-full text-text-primary gap-4 p-6 text-center max-w-md my-auto mx-auto">
-                  <div className="w-14 h-14 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl font-bold shadow-lg">!</div>
-                  <div>
-                    <p className="font-bold text-base mb-1.5">Arquivo PDF não encontrado ou expirado</p>
-                    <p className="text-xs text-text-muted leading-relaxed">Sessões anteriores de navegador expiram links temporários de PDF. Selecione o arquivo PDF do seu livro para carregá-lo novamente com todas as páginas.</p>
-                  </div>
-                  <label className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-xl cursor-pointer shadow-xl transition-all flex items-center gap-2">
-                    Selecionar arquivo PDF
-                    <input 
-                      type="file" 
-                      accept=".pdf" 
-                      className="hidden" 
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file && bookId) {
-                          await savePdfFile(bookId, file);
-                          const freshUrl = URL.createObjectURL(file);
-                          setResolvedUrl(freshUrl);
-                          setLoading(true);
-                          setError(null);
-                        }
-                      }} 
-                    />
-                  </label>
-                  <button 
-                      onClick={onClose}
-                      className="px-4 py-2 bg-bg-card border border-border-subtle rounded-xl text-text-muted hover:text-text-primary transition-colors text-xs"
-                  >
-                      Voltar à Estante
-                  </button>
-              </div>
-          ) : (
-              <div className={`shadow-2xl border border-border-subtle bg-white transition-all duration-200 ${viewMode === 'scroll' ? 'mb-8' : ''}`}>
-                  <Document
-                      file={resolvedUrl}
-                      onLoadSuccess={onDocumentLoadSuccess}
-                      onLoadError={onDocumentLoadError}
-                      loading={null}
-                      className="flex flex-col items-center"
-                  >
+          <div className={`shadow-2xl border border-border-subtle bg-white transition-all duration-200 ${viewMode === 'scroll' ? 'mb-8' : ''}`}>
+            <Document
+                file={resolvedUrl}
+                onLoadSuccess={onDocumentLoadSuccess}
+                onLoadError={onDocumentLoadError}
+                loading={null}
+                className="flex flex-col items-center"
+            >
                       {viewMode === 'single' ? (
                           <Page 
                               pageNumber={pageNumber} 
@@ -922,7 +921,6 @@ export function PdfViewer({
                       )}
                   </Document>
               </div>
-          )}
 
           {/* Floating Bottom Page Controls for single page mode */}
           {viewMode === 'single' && !loading && !error && (

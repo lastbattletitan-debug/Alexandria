@@ -177,8 +177,8 @@ export function Book3DViewer({
           setPageAspectRatio(detectedRatio);
         }
 
-        const targetPagePixelWidth = Math.max(1000, Math.min(1600, (dimensions.width || 500) * 2.5));
-        const renderScale = Math.max(1.2, Math.min(2.5, targetPagePixelWidth / (unscaledViewport.width || 600)));
+        const targetPagePixelWidth = 1400; // Crisp high-definition scale for all screens & fullscreen
+        const renderScale = Math.max(1.5, Math.min(2.5, targetPagePixelWidth / (unscaledViewport.width || 600)));
 
         // Revoke previous URLs if any
         objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
@@ -229,7 +229,8 @@ export function Book3DViewer({
         }
 
         if (active) {
-          setPdfPageImages([...images]);
+          const cleanImages = images.filter((img): img is string => Boolean(img));
+          setPdfPageImages(cleanImages);
           setIsLoadingPdf(false); // Book opens on screen immediately!
         }
 
@@ -243,7 +244,8 @@ export function Book3DViewer({
 
               // Batch update UI every 4 pages or at total
               if (active && (pNum % 4 === 0 || pNum === numPages)) {
-                setPdfPageImages([...images]);
+                const cleanBatch = images.filter((img): img is string => Boolean(img));
+                setPdfPageImages(cleanBatch);
                 setLoadingProgress({ current: pNum, total: numPages });
               }
             }
@@ -251,7 +253,10 @@ export function Book3DViewer({
         }
       } catch (err) {
         console.error('PDF rendering to 3D book error:', err);
-        if (active) setIsLoadingPdf(false);
+        if (active) {
+          setIsLoadingPdf(false);
+          setLoadingProgress({ current: 0, total: 0 });
+        }
       }
     }
 
@@ -259,7 +264,7 @@ export function Book3DViewer({
     return () => {
       active = false;
     };
-  }, [pdfDocument, pdfUrl, pdfPagesCount, dimensions.width]);
+  }, [pdfDocument, pdfUrl, pdfPagesCount]);
 
   // Build and mount PageFlip into isolated container
   useEffect(() => {

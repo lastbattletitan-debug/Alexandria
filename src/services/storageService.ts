@@ -4,6 +4,8 @@
  * and client-side data URLs for user uploads. NO Firebase Cloud Storage.
  */
 
+import { savePdfFile, getPdfFile } from '../utils/pdfStorage';
+
 // In-memory cache for fast URL resolution
 const urlCache = new Map<string, string>();
 
@@ -30,7 +32,17 @@ export async function uploadBookContent(
     };
   }
 
-  // For PDF or other binary files, create local object URL
+  // For PDF or binary files, save to persistent IndexedDB
+  if (cleanExt === 'pdf' || file.type === 'application/pdf') {
+    await savePdfFile(bookId, file);
+    const localUrl = URL.createObjectURL(file);
+    return {
+      storagePath: `indexeddb:${bookId}`,
+      downloadUrl: localUrl
+    };
+  }
+
+  // Fallback for other files
   const localUrl = URL.createObjectURL(file);
   return {
     storagePath: localUrl,
@@ -125,12 +137,20 @@ export async function uploadProfileAvatar(
 export async function getStorageUrl(storagePath: string): Promise<string> {
   if (!storagePath) return '';
 
+  if (storagePath.startsWith('indexeddb:')) {
+    const bookId = storagePath.replace('indexeddb:', '');
+    const blob = await getPdfFile(bookId);
+    if (blob) {
+      return URL.createObjectURL(blob);
+    }
+    return '';
+  }
+
   // Already a full or static URL
   if (
     storagePath.startsWith('/') ||
     storagePath.startsWith('http://') ||
     storagePath.startsWith('https://') ||
-    storagePath.startsWith('blob:') ||
     storagePath.startsWith('data:')
   ) {
     return storagePath;

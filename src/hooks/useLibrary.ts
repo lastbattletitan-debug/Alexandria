@@ -18,7 +18,7 @@ import {
   deleteStoragePath,
 } from '../services/storageService';
 import { runFirebaseMigration } from '../services/migrationService';
-import { savePdfFile } from '../utils/pdfStorage';
+import { savePdfFile, getPdfFile } from '../utils/pdfStorage';
 
 const CATEGORIES_KEY = 'alexandria-categories-v2';
 const CACHE_BOOKS_KEY = 'alexandria-books-cache-v2';
@@ -43,8 +43,41 @@ export function useLibrary() {
         const cachedBooks = await localforage.getItem<LibraryBook[]>(CACHE_BOOKS_KEY);
         const cachedCategories = await localforage.getItem<string[]>(CATEGORIES_KEY);
         
+        // Helper to ensure book URLs are valid and re-hydrated from IndexedDB if needed
+        const rehydrateBookUrls = async (bookList: LibraryBook[]): Promise<LibraryBook[]> => {
+          return Promise.all(
+            bookList.map(async (book) => {
+              let resolvedUrl = book.url || '';
+              let resolvedCover = book.thumbnail || '';
+
+              // First try fetching PDF blob from IndexedDB
+              if (book.id) {
+                const storedBlob = await getPdfFile(book.id);
+                if (storedBlob) {
+                  resolvedUrl = URL.createObjectURL(storedBlob);
+                } else if (book.contentPath) {
+                  resolvedUrl = await getStorageUrl(book.contentPath);
+                }
+              } else if (book.contentPath) {
+                resolvedUrl = await getStorageUrl(book.contentPath);
+              }
+
+              if (book.coverPath) {
+                resolvedCover = await getStorageUrl(book.coverPath);
+              }
+
+              return {
+                ...book,
+                url: resolvedUrl,
+                thumbnail: resolvedCover || resolvedUrl,
+              };
+            })
+          );
+        };
+
         if (!isCancelled && cachedBooks && cachedBooks.length > 0) {
-          setBooks(cachedBooks);
+          const hydratedCached = await rehydrateBookUrls(cachedBooks);
+          if (!isCancelled) setBooks(hydratedCached);
         }
         if (!isCancelled && cachedCategories) {
           setGlobalCategories(cachedCategories);
@@ -57,25 +90,7 @@ export function useLibrary() {
         const remoteBooks = await getBooksFromFirestore();
 
         // Resolve cover and content URLs asynchronously
-        const hydratedBooks = await Promise.all(
-          remoteBooks.map(async (book) => {
-            let resolvedUrl = book.url || '';
-            let resolvedCover = book.thumbnail || '';
-
-            if (book.contentPath) {
-              resolvedUrl = await getStorageUrl(book.contentPath);
-            }
-            if (book.coverPath) {
-              resolvedCover = await getStorageUrl(book.coverPath);
-            }
-
-            return {
-              ...book,
-              url: resolvedUrl,
-              thumbnail: resolvedCover || resolvedUrl,
-            };
-          })
-        );
+        const hydratedBooks = await rehydrateBookUrls(remoteBooks);
 
         if (!isCancelled) {
           setBooks(hydratedBooks);
