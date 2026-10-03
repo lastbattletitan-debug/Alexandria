@@ -63,7 +63,8 @@ export default function App() {
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('alexandria-view-mode') as ViewMode) || 'grid');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>('professores');
+  const showProfessores = false; // Hidden section as requested by user; set to true to unhide
+  const [activeTab, setActiveTab] = useState<Tab>('biblioteca');
   const [teacherToDelete, setTeacherToDelete] = useState<Teacher | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -823,7 +824,7 @@ export default function App() {
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 lg:gap-6 mb-6 lg:mb-8">
                 {/* Segmented Pill Tabs */}
                 <div className="bg-bg-card rounded-2xl p-1.5 flex items-center border border-border-subtle w-full sm:w-auto">
-                  {(['professores', 'mentores', 'biblioteca'] as Tab[]).map((tab) => (
+                  {((showProfessores ? ['biblioteca', 'mentores', 'professores'] : ['biblioteca', 'mentores']) as Tab[]).map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}

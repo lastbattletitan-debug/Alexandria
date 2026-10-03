@@ -863,6 +863,7 @@ export function PdfViewer({
             />
           </div>
           <Book3DViewer 
+            bookId={bookId}
             pdfDocument={pdfDoc}
             pdfPagesCount={numPages || undefined}
             pdfUrl={resolvedUrl}

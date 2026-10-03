@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
@@ -46,8 +47,17 @@ async function createServer() {
     res.json({ plan: 'Pro' });
   });
 
-  // Vite middleware in dev or static files in production
-  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL && !process.env.PORT) {
+  // Vite middleware in development or static dist in production
+  const distPath = path.resolve(__dirname, 'dist');
+  const distIndexHtml = path.resolve(distPath, 'index.html');
+  const hasBuild = fs.existsSync(distIndexHtml);
+
+  if (process.env.NODE_ENV === 'production' && hasBuild) {
+    app.use(express.static(distPath));
+    app.get('*', (_req, res) => {
+      res.sendFile(distIndexHtml);
+    });
+  } else {
     try {
       const { createServer: createViteServer } = await import('vite');
       const vite = await createViteServer({
@@ -56,18 +66,15 @@ async function createServer() {
       });
       app.use(vite.middlewares);
     } catch (e) {
-      const buildPath = path.resolve(__dirname, 'dist');
-      app.use(express.static(buildPath));
-      app.get('*', (req, res) => {
-        res.sendFile(path.join(buildPath, 'index.html'));
-      });
+      if (hasBuild) {
+        app.use(express.static(distPath));
+        app.get('*', (_req, res) => {
+          res.sendFile(distIndexHtml);
+        });
+      } else {
+        console.error('Vite dev server failed to start and dist/index.html does not exist:', e);
+      }
     }
-  } else {
-    const buildPath = path.resolve(__dirname, 'dist');
-    app.use(express.static(buildPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(buildPath, 'index.html'));
-    });
   }
 
   return app;

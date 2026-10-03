@@ -100,8 +100,8 @@ export function initPaperAudio() {
 /**
  * Plays a sound effect with zero latency using Web Audio API buffer source
  */
-function playTrackZeroLatency(targetSrc: string, volume = 0.85) {
-  if (typeof window === 'undefined') return;
+function playTrackZeroLatency(targetSrc: string, volume = 0.85): boolean {
+  if (typeof window === 'undefined') return false;
   if (!isAudioPreloaded) initPaperAudio();
 
   const ctx = getAudioContext();
@@ -109,6 +109,9 @@ function playTrackZeroLatency(targetSrc: string, volume = 0.85) {
 
   if (ctx && buffer) {
     try {
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
       const source = ctx.createBufferSource();
       source.buffer = buffer;
       const gainNode = ctx.createGain();
@@ -116,7 +119,7 @@ function playTrackZeroLatency(targetSrc: string, volume = 0.85) {
       source.connect(gainNode);
       gainNode.connect(ctx.destination);
       source.start(0); // Synchronous zero-delay playback
-      return;
+      return true;
     } catch (e) {
       // Fallback below
     }
@@ -130,7 +133,75 @@ function playTrackZeroLatency(targetSrc: string, volume = 0.85) {
       audio.currentTime = 0;
       audio.volume = Math.max(0, Math.min(1, volume));
       audio.play().catch(() => {});
+      return true;
     }
+  }
+
+  return false;
+}
+
+let noiseBuffer: AudioBuffer | null = null;
+
+function getPaperSwishBuffer(ctx: AudioContext): AudioBuffer {
+  if (noiseBuffer && noiseBuffer.sampleRate === ctx.sampleRate) {
+    return noiseBuffer;
+  }
+  const duration = 0.16; // 160ms paper slide sound
+  const bufferSize = ctx.sampleRate * duration;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+
+  let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+  for (let i = 0; i < bufferSize; i++) {
+    const white = Math.random() * 2 - 1;
+    // Pink noise filter algorithm for realistic soft paper texture
+    b0 = 0.99886 * b0 + white * 0.0555179;
+    b1 = 0.99332 * b1 + white * 0.0750759;
+    b2 = 0.96900 * b2 + white * 0.1538520;
+    b3 = 0.86650 * b3 + white * 0.3104856;
+    b4 = 0.55000 * b4 + white * 0.5329522;
+    b5 = -0.7616 * b5 - white * 0.0168980;
+    const pink = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+    b6 = white * 0.115926;
+    data[i] = (pink / 11) * Math.sin((i / bufferSize) * Math.PI);
+  }
+  noiseBuffer = buffer;
+  return buffer;
+}
+
+/**
+ * Plays a synthesized paper swish audio effect with guaranteed 0ms latency
+ */
+export function playInstantSyntheticPaperSwish(volume = 0.85) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
+    const swishBuffer = getPaperSwishBuffer(ctx);
+    const source = ctx.createBufferSource();
+    source.buffer = swishBuffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(1300, ctx.currentTime);
+    filter.Q.setValueAtTime(1.1, ctx.currentTime);
+
+    const gain = ctx.createGain();
+    const now = ctx.currentTime;
+    gain.gain.setValueAtTime(0.01, now);
+    gain.gain.linearRampToValueAtTime(volume * 0.35, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    source.start(now);
+  } catch (e) {
+    // Fallback
   }
 }
 
@@ -139,10 +210,14 @@ function playTrackZeroLatency(targetSrc: string, volume = 0.85) {
  */
 export function playRealisticPageTurn(volume = 0.85) {
   const now = Date.now();
-  if (now - lastPlayTimestamp < 40) return; // Reduced debounce for instant feedback
+  if (now - lastPlayTimestamp < 120) return; // Prevent rapid duplicate triggers
   lastPlayTimestamp = now;
 
-  playTrackZeroLatency(PAGE_TURN_AUDIO_FILES[0], volume);
+  // Play pre-decoded high-fidelity MP3 sample or fallback to synthetic paper swish
+  const played = playTrackZeroLatency(PAGE_TURN_AUDIO_FILES[0], volume);
+  if (!played) {
+    playInstantSyntheticPaperSwish(volume);
+  }
 }
 
 /**

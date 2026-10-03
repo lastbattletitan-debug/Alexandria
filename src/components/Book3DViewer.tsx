@@ -18,8 +18,10 @@ import {
   Minus
 } from 'lucide-react';
 import { playRealisticPageTurn, initPaperAudio } from '../utils/paperAudio';
+import { getMemoryCachedPages, getDbCachedPages, saveCachedPages } from '../utils/pdfCacheStorage';
 
 interface Book3DViewerProps {
+  bookId?: string;
   pdfDocument?: any;
   pdfPagesCount?: number;
   pdfUrl?: string;
@@ -32,6 +34,7 @@ interface Book3DViewerProps {
 }
 
 export function Book3DViewer({
+  bookId,
   pdfDocument,
   pdfPagesCount,
   pdfUrl,
@@ -79,11 +82,10 @@ export function Book3DViewer({
     soundEnabledRef.current = soundEnabled;
   }, [soundEnabled]);
 
-  // Clean up object URLs on unmount
+  // Clean up object URLs on unmount (managed by pdfCacheStorage)
   useEffect(() => {
     return () => {
-      objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
-      objectUrlsRef.current = [];
+      // Managed centrally by pdfCacheStorage for persistent instant loading
     };
   }, []);
 
@@ -148,8 +150,32 @@ export function Book3DViewer({
       return;
     }
 
+    const cacheKey = bookId || pdfUrl || title || 'default_pdf_book';
+
     async function loadPdf() {
+      // 1. Instant Memory Cache check (0ms)
+      const memCached = getMemoryCachedPages(cacheKey);
+      if (memCached && memCached.urls.length > 0) {
+        if (active) {
+          if (memCached.aspectRatio) setPageAspectRatio(memCached.aspectRatio);
+          setPdfPageImages(memCached.urls);
+          setIsLoadingPdf(false);
+        }
+        return;
+      }
+
+      // 2. Fast IndexedDB Cache check (~10ms)
       setIsLoadingPdf(true);
+      const dbCached = await getDbCachedPages(cacheKey);
+      if (!active) return;
+      if (dbCached && dbCached.urls.length > 0) {
+        if (dbCached.aspectRatio) setPageAspectRatio(dbCached.aspectRatio);
+        setPdfPageImages(dbCached.urls);
+        setIsLoadingPdf(false);
+        return;
+      }
+
+      // 3. Fallback to fresh PDF.js canvas rendering
       try {
         let doc = pdfDocument;
         if (!doc && pdfUrl) {
@@ -165,7 +191,6 @@ export function Book3DViewer({
         }
 
         const numPages = doc.numPages || pdfPagesCount || 1;
-        // Open book as soon as first 10 pages are ready so user is never kept waiting
         const initialBatch = Math.min(numPages, 10);
         setLoadingProgress({ current: 0, total: numPages });
 
@@ -180,14 +205,10 @@ export function Book3DViewer({
         const targetPagePixelWidth = 1400; // Crisp high-definition scale for all screens & fullscreen
         const renderScale = Math.max(1.5, Math.min(2.5, targetPagePixelWidth / (unscaledViewport.width || 600)));
 
-        // Revoke previous URLs if any
-        objectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
-        objectUrlsRef.current = [];
-
+        const blobs: Blob[] = new Array(numPages);
         const images: string[] = new Array(numPages);
 
-        // Render page sequentially (prevents pdf.js worker locks and canvas deadlocks)
-        async function renderSinglePage(pageNum: number): Promise<string | null> {
+        async function renderSinglePage(pageNum: number): Promise<{ blob: Blob; url: string } | null> {
           try {
             const page = (pageNum === 1) ? firstPage : await doc.getPage(pageNum);
             const viewport = page.getViewport({ scale: renderScale });
@@ -211,8 +232,7 @@ export function Book3DViewer({
 
             if (blob && active) {
               const objectUrl = URL.createObjectURL(blob);
-              objectUrlsRef.current.push(objectUrl);
-              return objectUrl;
+              return { blob, url: objectUrl };
             }
           } catch (err) {
             console.error(`Error rendering page ${pageNum}:`, err);
@@ -220,11 +240,14 @@ export function Book3DViewer({
           return null;
         }
 
-        // Render first 10 pages sequentially for instant book opening (~150ms)
+        // Render first 10 pages sequentially for instant book opening
         for (let pNum = 1; pNum <= initialBatch; pNum++) {
           if (!active) return;
-          const url = await renderSinglePage(pNum);
-          if (url) images[pNum - 1] = url;
+          const res = await renderSinglePage(pNum);
+          if (res) {
+            blobs[pNum - 1] = res.blob;
+            images[pNum - 1] = res.url;
+          }
           if (active) setLoadingProgress({ current: pNum, total: numPages });
         }
 
@@ -236,20 +259,29 @@ export function Book3DViewer({
 
         // Render remaining pages in background sequentially
         if (numPages > initialBatch && active) {
-          (async () => {
-            for (let pNum = initialBatch + 1; pNum <= numPages; pNum++) {
-              if (!active) return;
-              const url = await renderSinglePage(pNum);
-              if (url) images[pNum - 1] = url;
-
-              // Batch update UI every 4 pages or at total
-              if (active && (pNum % 4 === 0 || pNum === numPages)) {
-                const cleanBatch = images.filter((img): img is string => Boolean(img));
-                setPdfPageImages(cleanBatch);
-                setLoadingProgress({ current: pNum, total: numPages });
-              }
+          for (let pNum = initialBatch + 1; pNum <= numPages; pNum++) {
+            if (!active) return;
+            const res = await renderSinglePage(pNum);
+            if (res) {
+              blobs[pNum - 1] = res.blob;
+              images[pNum - 1] = res.url;
             }
-          })();
+
+            // Batch update UI every 4 pages or at total
+            if (active && (pNum % 4 === 0 || pNum === numPages)) {
+              const cleanBatch = images.filter((img): img is string => Boolean(img));
+              setPdfPageImages(cleanBatch);
+              setLoadingProgress({ current: pNum, total: numPages });
+            }
+          }
+        }
+
+        // Save rendered blobs into in-memory and IndexedDB cache
+        if (active) {
+          const validBlobs = blobs.filter((b): b is Blob => Boolean(b));
+          if (validBlobs.length > 0) {
+            saveCachedPages(cacheKey, validBlobs, detectedRatio || 0.714);
+          }
         }
       } catch (err) {
         console.error('PDF rendering to 3D book error:', err);
@@ -264,7 +296,7 @@ export function Book3DViewer({
     return () => {
       active = false;
     };
-  }, [pdfDocument, pdfUrl, pdfPagesCount]);
+  }, [bookId, pdfDocument, pdfUrl, pdfPagesCount, title]);
 
   // Build and mount PageFlip into isolated container
   useEffect(() => {
@@ -637,7 +669,8 @@ export function Book3DViewer({
       }
 
       flip.on('changeState', (e: any) => {
-        if ((e.data === 'flipping' || e.data === 'user_fold') && soundEnabledRef.current) {
+        // Only trigger audio on manual cursor fold (user_fold) to avoid double/delayed sound on button clicks
+        if (e.data === 'user_fold' && soundEnabledRef.current) {
           playRealisticPageTurn(0.85);
         }
       });
