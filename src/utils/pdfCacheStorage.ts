@@ -3,9 +3,9 @@
  * re-rendering when closing/reopening books or refreshing the page.
  */
 
-const DB_NAME = 'AlexandriaRenderedPagesCache';
+const DB_NAME = 'AlexandriaRenderedPagesCacheV2';
 const STORE_NAME = 'rendered_pages';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export interface CachedRender {
   urls: string[];

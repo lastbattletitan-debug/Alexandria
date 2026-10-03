@@ -202,8 +202,8 @@ export function Book3DViewer({
           setPageAspectRatio(detectedRatio);
         }
 
-        const targetPagePixelWidth = 1400; // Crisp high-definition scale for all screens & fullscreen
-        const renderScale = Math.max(1.5, Math.min(2.5, targetPagePixelWidth / (unscaledViewport.width || 600)));
+        const targetPagePixelWidth = 2800; // Ultra-HD 4K scale for razor-sharp clarity at 200%+ zoom
+        const renderScale = Math.max(2.5, Math.min(4.5, targetPagePixelWidth / (unscaledViewport.width || 600)));
 
         const blobs: Blob[] = new Array(numPages);
         const images: string[] = new Array(numPages);
@@ -219,7 +219,7 @@ export function Book3DViewer({
             if (!ctx) return null;
 
             ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'medium';
+            ctx.imageSmoothingQuality = 'high';
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -227,7 +227,7 @@ export function Book3DViewer({
             await renderTask.promise;
 
             const blob = await new Promise<Blob | null>(resolve => {
-              canvas.toBlob(resolve, 'image/jpeg', 0.88);
+              canvas.toBlob(resolve, 'image/jpeg', 0.96);
             });
 
             if (blob && active) {

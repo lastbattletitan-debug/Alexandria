@@ -10,10 +10,14 @@
 
 export const PAGE_TURN_AUDIO_FILES: string[] = [
   '/audio/page-turn/page-turn-01.mp3',
+  '/audio/page-turn/page-turn-01.MP3',
+  '/audio/page-turn/page-turn-01.wav',
 ];
 
 export const PAGE_FLIP_AUDIO_FILES: string[] = [
   '/audio/page-flip/flip-01.mp3',
+  '/audio/page-flip/flip-01.MP3',
+  '/audio/page-flip/flip-01.wav',
 ];
 
 export const BOOK_AUDIO_FILES = {
@@ -214,7 +218,14 @@ export function playRealisticPageTurn(volume = 0.85) {
   lastPlayTimestamp = now;
 
   // Play pre-decoded high-fidelity MP3 sample or fallback to synthetic paper swish
-  const played = playTrackZeroLatency(PAGE_TURN_AUDIO_FILES[0], volume);
+  let played = false;
+  for (const src of PAGE_TURN_AUDIO_FILES) {
+    if (playTrackZeroLatency(src, volume)) {
+      played = true;
+      break;
+    }
+  }
+
   if (!played) {
     playInstantSyntheticPaperSwish(volume);
   }
@@ -228,7 +239,11 @@ export function playPageFlipSound(volume = 0.85) {
   if (now - lastPlayTimestamp < 40) return;
   lastPlayTimestamp = now;
 
-  playTrackZeroLatency(PAGE_FLIP_AUDIO_FILES[0], volume);
+  for (const src of PAGE_FLIP_AUDIO_FILES) {
+    if (playTrackZeroLatency(src, volume)) {
+      break;
+    }
+  }
 }
 
 /**
