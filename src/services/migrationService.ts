@@ -220,91 +220,85 @@ export async function runFirebaseMigration(): Promise<{ migratedBooksCount: numb
       migratedProfile = true;
     }
 
-    // 2. Books Setup in Firestore
-    const existingFirestoreBooks = await getBooksFromFirestore();
+    // 2. Books Setup in Firestore (ONLY on initial first run)
+    const hasAlreadyMigrated = localStorage.getItem(MIGRATION_FLAG_KEY) === 'true';
 
-    // Check if there are legacy books in localforage
-    const legacyBooks = await localforage.getItem<any[]>(LEGACY_STORAGE_KEY);
-    
-    if (existingFirestoreBooks.length === 0) {
-      if (Array.isArray(legacyBooks) && legacyBooks.length > 0) {
-        // Migrate legacy books, preserving existing data
-        for (let i = 0; i < legacyBooks.length; i++) {
-          const lb = legacyBooks[i];
-          const bookId = lb.id || crypto.randomUUID();
+    if (!hasAlreadyMigrated) {
+      const existingFirestoreBooks = await getBooksFromFirestore();
 
-          let status: LibraryBook['status'] = 'unread';
-          if (lb.status === 'Lendo agora' || lb.status === 'reading') status = 'reading';
-          else if (lb.status === 'Pausado' || lb.status === 'paused') status = 'paused';
-          else if (lb.status === 'Concluído' || lb.status === 'finished') status = 'finished';
-          else if (lb.status === 'Próximo' || lb.status === 'unread') status = 'unread';
+      // Check if there are legacy books in localforage
+      const legacyBooks = await localforage.getItem<any[]>(LEGACY_STORAGE_KEY);
+      
+      if (existingFirestoreBooks.length === 0) {
+        if (Array.isArray(legacyBooks) && legacyBooks.length > 0) {
+          // Migrate legacy books, preserving existing data
+          for (let i = 0; i < legacyBooks.length; i++) {
+            const lb = legacyBooks[i];
+            const bookId = lb.id || crypto.randomUUID();
 
-          const currentPage = typeof lb.currentPage === 'number' ? lb.currentPage : 0;
-          const totalPages = typeof lb.totalPages === 'number' ? lb.totalPages : 1;
-          const progress = totalPages > 0 ? currentPage / totalPages : 0;
+            let status: LibraryBook['status'] = 'unread';
+            if (lb.status === 'Lendo agora' || lb.status === 'reading') status = 'reading';
+            else if (lb.status === 'Pausado' || lb.status === 'paused') status = 'paused';
+            else if (lb.status === 'Concluído' || lb.status === 'finished') status = 'finished';
+            else if (lb.status === 'Próximo' || lb.status === 'unread') status = 'unread';
 
-          // If legacy book has a text content or file text
-          let content = lb.content || '';
-          if (!content && lb.file && lb.file instanceof Blob && (lb.format === 'md' || lb.title?.endsWith('.md'))) {
-            try {
-              content = await lb.file.text();
-            } catch (e) {}
-          }
+            const currentPage = typeof lb.currentPage === 'number' ? lb.currentPage : 0;
+            const totalPages = typeof lb.totalPages === 'number' ? lb.totalPages : 1;
+            const progress = totalPages > 0 ? currentPage / totalPages : 0;
 
-          const migratedBook: LibraryBook = {
-            id: bookId,
-            title: lb.title || 'Livro sem título',
-            author: lb.author || 'Autor desconhecido',
-            coverPath: lb.coverPath || lb.thumbnail || '/covers/alexandria-codex.svg',
-            contentPath: '',
-            content,
-            status,
-            currentPage,
-            totalPages,
-            progress: Math.min(1.0, Math.max(0.0, progress)),
-            readingOrder: i,
-            favorite: !!lb.favorite,
-            createdAt: lb.addedAt || new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            lastOpenedAt: lb.lastOpenedAt || new Date().toISOString(),
-            startedAt: lb.startedAt || null,
-            finishedAt: lb.finishedAt || null,
-            format: (lb.format || (lb.title?.endsWith('.md') ? 'md' : 'pdf')) as any,
-            categories: Array.isArray(lb.categories) ? lb.categories : [],
-            rating: lb.rating || 0,
-          };
+            // If legacy book has a text content or file text
+            let content = lb.content || '';
+            if (!content && lb.file && lb.file instanceof Blob && (lb.format === 'md' || lb.title?.endsWith('.md'))) {
+              try {
+                content = await lb.file.text();
+              } catch (e) {}
+            }
 
-          await saveBookToFirestore(migratedBook, content);
-          migratedBooksCount++;
-        }
-      } else {
-        // Seed default starter books stored 100% in Firestore as Markdown text
-        for (const seed of INITIAL_PROJECT_BOOKS) {
-          const bookId = crypto.randomUUID();
-          const { markdownContent, ...bookFields } = seed;
-          await saveBookToFirestore(
-            {
-              ...bookFields,
+            const migratedBook: LibraryBook = {
               id: bookId,
-            },
-            markdownContent
-          );
-          migratedBooksCount++;
-        }
-      }
-    } else {
-      // If books exist but any of the default ones lack content, ensure content is set
-      for (const book of existingFirestoreBooks) {
-        if (!book.content && !book.hasChapters) {
-          const matchingSeed = INITIAL_PROJECT_BOOKS.find(s => s.title === book.title);
-          if (matchingSeed) {
-            await saveBookToFirestore(book, matchingSeed.markdownContent);
+              title: lb.title || 'Livro sem título',
+              author: lb.author || 'Autor desconhecido',
+              coverPath: lb.coverPath || lb.thumbnail || '/covers/alexandria-codex.svg',
+              contentPath: '',
+              content,
+              status,
+              currentPage,
+              totalPages,
+              progress: Math.min(1.0, Math.max(0.0, progress)),
+              readingOrder: i,
+              favorite: !!lb.favorite,
+              createdAt: lb.addedAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              lastOpenedAt: lb.lastOpenedAt || new Date().toISOString(),
+              startedAt: lb.startedAt || null,
+              finishedAt: lb.finishedAt || null,
+              format: (lb.format || (lb.title?.endsWith('.md') ? 'md' : 'pdf')) as any,
+              categories: Array.isArray(lb.categories) ? lb.categories : [],
+              rating: lb.rating || 0,
+            };
+
+            await saveBookToFirestore(migratedBook, content);
+            migratedBooksCount++;
+          }
+        } else {
+          // Seed default starter books stored 100% in Firestore as Markdown text
+          for (const seed of INITIAL_PROJECT_BOOKS) {
+            const bookId = crypto.randomUUID();
+            const { markdownContent, ...bookFields } = seed;
+            await saveBookToFirestore(
+              {
+                ...bookFields,
+                id: bookId,
+              },
+              markdownContent
+            );
+            migratedBooksCount++;
           }
         }
       }
-    }
 
-    localStorage.setItem(MIGRATION_FLAG_KEY, 'true');
+      localStorage.setItem(MIGRATION_FLAG_KEY, 'true');
+    }
   } catch (err) {
     console.error('Starter migration error:', err);
   }

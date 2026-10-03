@@ -116,7 +116,7 @@ export function useLibrary() {
 
   // Sync books to local cache whenever books state changes
   useEffect(() => {
-    if (isLoaded && books.length > 0) {
+    if (isLoaded) {
       localforage.setItem(CACHE_BOOKS_KEY, books).catch(() => {});
     }
   }, [books, isLoaded]);
@@ -231,7 +231,11 @@ export function useLibrary() {
    */
   const removeBook = async (id: string) => {
     const bookToRemove = books.find(b => b.id === id);
-    setBooks((prev) => prev.filter((b) => b.id !== id));
+    const updatedBooks = books.filter((b) => b.id !== id);
+    setBooks(updatedBooks);
+
+    // Immediately persist empty/updated array to localforage cache
+    await localforage.setItem(CACHE_BOOKS_KEY, updatedBooks).catch(() => {});
 
     try {
       await deleteBookFromFirestore(id);
