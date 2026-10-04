@@ -110,13 +110,29 @@ export function PdfViewer({
       active = false;
     };
   }, [resolvedUrl]);
+  const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && (window.innerWidth < 768 || 'ontouchstart' in window));
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(initialPage || 1);
   const [scale, setScale] = useState(1.0);
   const [inputPage, setInputPage] = useState((initialPage || 1).toString());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'single' | 'scroll' | 'book3d'>('book3d');
+  const [viewMode, setViewMode] = useState<'single' | 'scroll' | 'book3d'>(() => {
+    const mobileCheck = typeof window !== 'undefined' && (window.innerWidth < 768 || 'ontouchstart' in window);
+    return mobileCheck ? 'single' : 'book3d';
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile && viewMode === 'book3d') {
+        setViewMode('single');
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [viewMode]);
   const [isToolbarVisible, setIsToolbarVisible] = useState(false);
   
   // Search state
@@ -704,30 +720,32 @@ export function PdfViewer({
             </div>
 
           {/* Mode Switcher */}
-          <div className="hidden sm:flex items-center bg-bg-card border border-border-subtle rounded-xl p-1 gap-0.5">
-            <button
-              onClick={() => setViewMode('book3d')}
-              className={`p-2 rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'book3d' ? 'bg-amber-500/20 text-amber-300 font-semibold shadow-sm' : 'text-text-muted hover:text-text-primary'}`}
-              title="Livro Físico 3D (Folhear Páginas)"
-            >
-              <BookOpen className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
-              <span className="text-[10px] hidden md:inline">3D</span>
-            </button>
+          <div className="flex items-center bg-bg-card border border-border-subtle rounded-xl p-1 gap-0.5">
+            {!isMobile && (
+              <button
+                onClick={() => setViewMode('book3d')}
+                className={`p-1.5 lg:p-2 rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'book3d' ? 'bg-amber-500/20 text-amber-300 font-semibold shadow-sm' : 'text-text-muted hover:text-text-primary'}`}
+                title="Livro Físico 3D (Folhear Páginas)"
+              >
+                <BookOpen className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
+                <span className="text-[10px] hidden md:inline">3D</span>
+              </button>
+            )}
             <button
               onClick={() => setViewMode('single')}
-              className={`p-2 rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'single' ? 'bg-border-subtle text-text-primary font-semibold' : 'text-text-muted hover:text-text-primary'}`}
-              title="Página Única (Arrastar para o lado)"
+              className={`p-1.5 lg:p-2 rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'single' ? 'bg-border-subtle text-text-primary font-semibold' : 'text-text-muted hover:text-text-primary'}`}
+              title="Página Única (Lado a Lado)"
             >
               <FileText className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
-              <span className="text-[10px] hidden md:inline">Lado</span>
+              <span className="text-[10px]">Lado</span>
             </button>
             <button
               onClick={() => setViewMode('scroll')}
-              className={`p-2 rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'scroll' ? 'bg-border-subtle text-text-primary font-semibold' : 'text-text-muted hover:text-text-primary'}`}
-              title="Rolagem Contínua (Arrastar para cima)"
+              className={`p-1.5 lg:p-2 rounded-lg transition-all flex items-center gap-1.5 ${viewMode === 'scroll' ? 'bg-border-subtle text-text-primary font-semibold' : 'text-text-muted hover:text-text-primary'}`}
+              title="Rolagem Contínua (Para cima)"
             >
               <Rows className="w-[14px] h-[14px] lg:w-[16px] lg:h-[16px]" />
-              <span className="text-[10px] hidden md:inline">Cima</span>
+              <span className="text-[10px]">Cima</span>
             </button>
           </div>
 
@@ -872,6 +890,10 @@ export function PdfViewer({
             paperTheme={paperTheme}
             title={title}
             initialPage={pageNumber - 1}
+            onError={(errText) => {
+              setError(errText);
+              setLoading(false);
+            }}
             onPageChange={(page, total) => {
               setPageNumber(page);
               setInputPage(page.toString());

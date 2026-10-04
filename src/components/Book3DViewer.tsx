@@ -27,6 +27,7 @@ interface Book3DViewerProps {
   pdfUrl?: string;
   isLoading?: boolean;
   onPageChange?: (page: number, total: number) => void;
+  onError?: (error: string) => void;
   title?: string;
   initialPage?: number;
   soundEnabled?: boolean;
@@ -40,6 +41,7 @@ export function Book3DViewer({
   pdfUrl,
   isLoading = false,
   onPageChange,
+  onError,
   title = "Livro Digital",
   initialPage = 0,
   soundEnabled = true,
@@ -52,13 +54,14 @@ export function Book3DViewer({
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [zoomLevel, setZoomLevel] = useState<number>(1.0);
   const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(false);
+  const [loadError, setLoadError] = useState<boolean>(false);
   const [dimensions, setDimensions] = useState({ width: 420, height: 580 });
   const [pageAspectRatio, setPageAspectRatio] = useState<number>(0.714);
   const [pdfPageImages, setPdfPageImages] = useState<string[]>([]);
   const [loadingProgress, setLoadingProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
   const objectUrlsRef = useRef<string[]>([]);
 
-  const isBusyLoading = isLoading || isLoadingPdf || ((!!pdfDocument || !!pdfUrl) && pdfPageImages.length === 0);
+  const isBusyLoading = !loadError && (isLoading || isLoadingPdf || ((!!pdfDocument || !!pdfUrl) && pdfPageImages.length === 0));
 
   // Simulated progress for non-PDF or initial loading states
   useEffect(() => {
@@ -145,6 +148,7 @@ export function Book3DViewer({
   // Render PDF pages to high-res image buffers if pdfDocument or pdfUrl exists
   useEffect(() => {
     let active = true;
+    setLoadError(false);
     if (!pdfDocument && !pdfUrl) {
       setPdfPageImages([]);
       return;
@@ -179,13 +183,25 @@ export function Book3DViewer({
       try {
         let doc = pdfDocument;
         if (!doc && pdfUrl) {
-          const loadingTask = pdfjs.getDocument(pdfUrl);
-          doc = await loadingTask.promise;
+          try {
+            const loadingTask = pdfjs.getDocument(pdfUrl);
+            doc = await loadingTask.promise;
+          } catch (e) {
+            console.error('Failed to get PDF document:', e);
+            if (active) {
+              setLoadError(true);
+              setIsLoadingPdf(false);
+              onError?.('O arquivo PDF não pôde ser carregado. Por favor, selecione-o novamente.');
+            }
+            return;
+          }
         }
         if (!doc) {
           if (active) {
             setPdfPageImages([]);
             setIsLoadingPdf(false);
+            setLoadError(true);
+            onError?.('O arquivo PDF não pôde ser carregado. Por favor, selecione-o novamente.');
           }
           return;
         }
@@ -202,8 +218,11 @@ export function Book3DViewer({
           setPageAspectRatio(detectedRatio);
         }
 
-        const targetPagePixelWidth = 2800; // Ultra-HD 4K scale for razor-sharp clarity at 200%+ zoom
-        const renderScale = Math.max(2.5, Math.min(4.5, targetPagePixelWidth / (unscaledViewport.width || 600)));
+        // Detect mobile screen / touch device to use lower memory footprint & ultra-fast rendering
+        const isMobileDevice = typeof window !== 'undefined' && (window.innerWidth < 768 || 'ontouchstart' in window);
+        const targetPagePixelWidth = isMobileDevice ? 1200 : 2800; // Fast rendering on mobile, 4K crispness on desktop
+        const maxScale = isMobileDevice ? 2.0 : 4.5;
+        const renderScale = Math.max(1.2, Math.min(maxScale, targetPagePixelWidth / (unscaledViewport.width || 600)));
 
         const blobs: Blob[] = new Array(numPages);
         const images: string[] = new Array(numPages);
@@ -227,7 +246,7 @@ export function Book3DViewer({
             await renderTask.promise;
 
             const blob = await new Promise<Blob | null>(resolve => {
-              canvas.toBlob(resolve, 'image/jpeg', 0.96);
+              canvas.toBlob(resolve, 'image/jpeg', isMobileDevice ? 0.88 : 0.95);
             });
 
             if (blob && active) {
@@ -253,7 +272,12 @@ export function Book3DViewer({
 
         if (active) {
           const cleanImages = images.filter((img): img is string => Boolean(img));
-          setPdfPageImages(cleanImages);
+          if (cleanImages.length === 0) {
+            setLoadError(true);
+            onError?.('O arquivo PDF não pôde ser carregado. Por favor, selecione-o novamente.');
+          } else {
+            setPdfPageImages(cleanImages);
+          }
           setIsLoadingPdf(false); // Book opens on screen immediately!
         }
 
@@ -270,7 +294,9 @@ export function Book3DViewer({
             // Batch update UI every 4 pages or at total
             if (active && (pNum % 4 === 0 || pNum === numPages)) {
               const cleanBatch = images.filter((img): img is string => Boolean(img));
-              setPdfPageImages(cleanBatch);
+              if (cleanBatch.length > 0) {
+                setPdfPageImages(cleanBatch);
+              }
               setLoadingProgress({ current: pNum, total: numPages });
             }
           }
@@ -286,6 +312,8 @@ export function Book3DViewer({
       } catch (err) {
         console.error('PDF rendering to 3D book error:', err);
         if (active) {
+          setLoadError(true);
+          onError?.('O arquivo PDF não pôde ser carregado. Por favor, selecione-o novamente.');
           setIsLoadingPdf(false);
           setLoadingProgress({ current: 0, total: 0 });
         }
@@ -781,8 +809,20 @@ export function Book3DViewer({
       {/* Background ambient subtle lighting */}
       <div className="absolute inset-0 pointer-events-none opacity-30 bg-[radial-gradient(ellipse_at_center,_rgba(255,255,255,0.04)_0%,_transparent_70%)]" />
 
-      {/* Main Stage: Centered Loading Symbol or 3D Book */}
-      {isBusyLoading ? (
+      {/* Main Stage: Centered Loading Symbol, Error, or 3D Book */}
+      {loadError ? (
+        <div className="flex-1 w-full flex flex-col items-center justify-center p-6 gap-4 z-30 animate-in fade-in duration-300 select-none text-center max-w-sm my-auto">
+          <div className="w-14 h-14 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl font-bold shadow-lg">!</div>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-base font-bold text-text-primary">
+              Arquivo PDF não encontrado ou expirado
+            </span>
+            <span className="text-xs text-text-muted leading-relaxed">
+              Sessões do navegador expiram links temporários. Selecione o PDF original para salvá-lo no dispositivo.
+            </span>
+          </div>
+        </div>
+      ) : isBusyLoading ? (
         <div className="flex-1 w-full flex flex-col items-center justify-center p-6 gap-4 z-30 animate-in fade-in duration-300 select-none">
           <div className="bg-bg-card/90 backdrop-blur-xl p-6 md:p-8 rounded-2xl flex flex-col items-center gap-4 border border-border-subtle shadow-2xl max-w-xs text-center">
             <div className="relative flex items-center justify-center">
