@@ -50,6 +50,10 @@ export function Book3DViewer({
   const mountContainerRef = useRef<HTMLDivElement>(null);
   const flipInstanceRef = useRef<any>(null);
   const [currentPage, setCurrentPage] = useState<number>(initialPage);
+
+  useEffect(() => {
+    setCurrentPage(initialPage);
+  }, [initialPage]);
   const [totalPages, setTotalPages] = useState<number>(8);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [zoomLevel, setZoomLevel] = useState<number>(1.0);
@@ -625,6 +629,26 @@ export function Book3DViewer({
 
       const leaves = bookEl.querySelectorAll('.book-leaf-page');
       flip.loadFromHTML(leaves);
+
+      // Force PageFlip to turn to the initial saved page
+      const targetStartPage = Math.min(Math.max(0, initialPage), total - 1);
+      if (targetStartPage > 0) {
+        try {
+          flip.turnToPage(targetStartPage);
+        } catch (e) {
+          try {
+            (flip as any).flip(targetStartPage);
+          } catch (err) {}
+        }
+
+        setTimeout(() => {
+          try {
+            if (flipInstanceRef.current && flipInstanceRef.current.getCurrentPageIndex() !== targetStartPage) {
+              flipInstanceRef.current.turnToPage(targetStartPage);
+            }
+          } catch (e) {}
+        }, 100);
+      }
 
       // Center spine seam and 3D relief groove
       const spineEl = document.createElement('div');

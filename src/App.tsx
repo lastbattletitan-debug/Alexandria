@@ -35,6 +35,7 @@ import { PdfViewer } from './components/PdfViewer';
 import { MarkdownViewer } from './components/MarkdownViewer';
 import { MentorBrainView } from './components/MentorBrainView';
 import { SortableBookCard } from './components/SortableBookCard';
+import { ReadingMagnifier } from './components/ReadingMagnifier';
 
 type ViewMode = 'grid' | 'list' | 'categories' | 'status';
 type Tab = 'professores' | 'mentores' | 'biblioteca';
@@ -1203,6 +1204,7 @@ export default function App() {
           )}
         </AnimatePresence>
       </main>
+      <ReadingMagnifier />
     </div>
   );
 }

@@ -173,6 +173,10 @@ export function PdfViewer({
   const [pdfAspectRatio, setPdfAspectRatio] = useState<number | null>(null);
   const [pageSize, setPageSize] = useState<{ width: number }>({ width: 650 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const hasScrolledToInitialRef = useRef<boolean>(false);
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
 
   const updateDimensions = useCallback(() => {
     if (!containerRef.current) return;
@@ -205,14 +209,90 @@ export function PdfViewer({
   }, [updateDimensions]);
 
   useEffect(() => {
-    setPageNumber(1);
-    setInputPage('1');
+    setPageNumber(initialPage || 1);
+    setInputPage((initialPage || 1).toString());
     setError(null);
     setLoading(true);
     setSearchResults([]);
     setSearchQuery('');
     setPdfText([]);
-  }, [url]);
+    hasScrolledToInitialRef.current = false;
+  }, [url, initialPage]);
+
+  // Auto-scroll to initial page when in continuous scroll mode
+  useEffect(() => {
+    if (viewMode === 'scroll' && !loading && numPages && !hasScrolledToInitialRef.current) {
+      const targetPage = initialPage || pageNumber || 1;
+      if (targetPage > 1) {
+        const timer = setTimeout(() => {
+          const pageEl = document.getElementById(`pdf-page-${targetPage}`);
+          if (pageEl) {
+            pageEl.scrollIntoView({ behavior: 'auto', block: 'start' });
+            hasScrolledToInitialRef.current = true;
+          }
+        }, 150);
+        return () => clearTimeout(timer);
+      } else {
+        hasScrolledToInitialRef.current = true;
+      }
+    }
+  }, [viewMode, loading, numPages, initialPage, pageNumber]);
+
+  // Track page position during continuous vertical scrolling
+  useEffect(() => {
+    if (viewMode !== 'scroll' || loading || !numPages) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const pageAttr = entry.target.getAttribute('data-page');
+            if (pageAttr) {
+              const pageNum = parseInt(pageAttr, 10);
+              if (pageNum && pageNum !== pageNumber) {
+                setPageNumber(pageNum);
+              }
+            }
+          }
+        });
+      },
+      {
+        root: scrollContainerRef.current,
+        threshold: 0.3,
+      }
+    );
+
+    const pageElements = document.querySelectorAll('.pdf-page-wrapper');
+    pageElements.forEach((el) => observer.observe(el));
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [viewMode, loading, numPages, pageNumber]);
+
+  // Touch Swipe navigation for single page view on mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      touchStartXRef.current = e.touches[0].clientX;
+      touchStartYRef.current = e.touches[0].clientY;
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null || touchStartYRef.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
+    const deltaY = e.changedTouches[0].clientY - touchStartYRef.current;
+
+    if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+      if (deltaX < 0) {
+        changePage(1); // Swipe left -> Next page
+      } else {
+        changePage(-1); // Swipe right -> Prev page
+      }
+    }
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+  };
 
   // Keyboard navigation
   useEffect(() => {
@@ -904,7 +984,10 @@ export function PdfViewer({
           />
         </div>
       ) : (
-        <div className="flex-1 overflow-auto flex justify-center p-4 lg:p-8 bg-bg-main/50 relative">
+        <div 
+          ref={scrollContainerRef}
+          className="flex-1 overflow-auto flex justify-center p-4 lg:p-8 bg-bg-main/50 relative"
+        >
           {loading && !error && (
             <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
               <div className="bg-bg-card/80 backdrop-blur-sm p-4 rounded-xl flex items-center gap-3 border border-border-subtle shadow-lg">
@@ -916,34 +999,48 @@ export function PdfViewer({
           
           <div className={`shadow-2xl border border-border-subtle bg-white transition-all duration-200 ${viewMode === 'scroll' ? 'mb-8' : ''}`}>
             <Document
-                file={resolvedUrl}
-                onLoadSuccess={onDocumentLoadSuccess}
-                onLoadError={onDocumentLoadError}
-                loading={null}
-                className="flex flex-col items-center"
+              file={resolvedUrl}
+              onLoadSuccess={onDocumentLoadSuccess}
+              onLoadError={onDocumentLoadError}
+              loading={null}
+              className="flex flex-col items-center"
             >
-                      {viewMode === 'single' ? (
-                          <Page 
-                              pageNumber={pageNumber} 
-                              scale={scale} 
-                              width={pageSize.width}
-                              renderTextLayer={true}
-                              renderAnnotationLayer={true}
-                              className="max-w-full" />
-                      ) : (
-                          Array.from(new Array(numPages), (el, index) => (
-                              <Page 
-                                  key={`page_${index + 1}`}
-                                  pageNumber={index + 1} 
-                                  scale={scale} 
-                                  width={pageSize.width}
-                                  renderTextLayer={true}
-                                  renderAnnotationLayer={true}
-                                  className="max-w-full mb-2 border-b border-gray-200 last:border-0" />
-                          ))
-                      )}
-                  </Document>
-              </div>
+              {viewMode === 'single' ? (
+                <div 
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
+                  className="touch-pan-y"
+                >
+                  <Page 
+                    pageNumber={pageNumber} 
+                    scale={scale} 
+                    width={pageSize.width}
+                    renderTextLayer={true}
+                    renderAnnotationLayer={true}
+                    className="max-w-full" 
+                  />
+                </div>
+              ) : (
+                Array.from(new Array(numPages), (el, index) => (
+                  <div 
+                    key={`page_${index + 1}`}
+                    id={`pdf-page-${index + 1}`}
+                    data-page={index + 1}
+                    className="pdf-page-wrapper mb-2 border-b border-gray-200 last:border-0"
+                  >
+                    <Page 
+                      pageNumber={index + 1} 
+                      scale={scale} 
+                      width={pageSize.width}
+                      renderTextLayer={true}
+                      renderAnnotationLayer={true}
+                      className="max-w-full" 
+                    />
+                  </div>
+                ))
+              )}
+            </Document>
+          </div>
 
           {/* Floating Bottom Page Controls for single page mode */}
           {viewMode === 'single' && !loading && !error && (
