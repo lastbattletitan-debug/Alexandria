@@ -84,21 +84,46 @@ export function ReadingMagnifier() {
     };
   }, [isActive]);
 
-  // Context menu (Right-click) handler when magnifier is active
+  // Context menu (Right-click) & pointer capture handler when magnifier is active
   useEffect(() => {
     if (!isActive) return;
 
+    // Stop right-click mouse/pointer events from propagating to PageFlip or underlying elements
+    const handleRightClickCapture = (e: MouseEvent | PointerEvent) => {
+      if (e.button === 2 || e.which === 3) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }
+    };
+
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+
       // Ensure context menu stays within viewport
-      const x = Math.min(e.clientX, window.innerWidth - 220);
-      const y = Math.min(e.clientY, window.innerHeight - 260);
+      const x = Math.min(e.clientX, window.innerWidth - 230);
+      const y = Math.min(e.clientY, window.innerHeight - 270);
       setMenuPos({ x, y });
       setIsContextMenuOpen(true);
     };
 
-    window.addEventListener('contextmenu', handleContextMenu);
-    return () => window.removeEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('mousedown', handleRightClickCapture, { capture: true });
+    window.addEventListener('pointerdown', handleRightClickCapture, { capture: true });
+    window.addEventListener('mouseup', handleRightClickCapture, { capture: true });
+    window.addEventListener('pointerup', handleRightClickCapture, { capture: true });
+    window.addEventListener('auxclick', handleRightClickCapture, { capture: true });
+    window.addEventListener('contextmenu', handleContextMenu, { capture: true });
+
+    return () => {
+      window.removeEventListener('mousedown', handleRightClickCapture, { capture: true });
+      window.removeEventListener('pointerdown', handleRightClickCapture, { capture: true });
+      window.removeEventListener('mouseup', handleRightClickCapture, { capture: true });
+      window.removeEventListener('pointerup', handleRightClickCapture, { capture: true });
+      window.removeEventListener('auxclick', handleRightClickCapture, { capture: true });
+      window.removeEventListener('contextmenu', handleContextMenu, { capture: true });
+    };
   }, [isActive]);
 
   // Close context menu on left click outside menu

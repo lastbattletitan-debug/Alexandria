@@ -83,11 +83,21 @@ export function Book3DViewer({
     }
   }, [isBusyLoading, loadingProgress.total]);
 
-  // Sound ref to avoid re-triggering effects
+  // Sound ref and callback refs to avoid re-triggering PageFlip initialization effect
   const soundEnabledRef = useRef(soundEnabled);
   useEffect(() => {
     soundEnabledRef.current = soundEnabled;
   }, [soundEnabled]);
+
+  const onPageChangeRef = useRef(onPageChange);
+  useEffect(() => {
+    onPageChangeRef.current = onPageChange;
+  }, [onPageChange]);
+
+  const initialPageRef = useRef(initialPage);
+  useEffect(() => {
+    initialPageRef.current = initialPage;
+  }, [initialPage]);
 
   // Clean up object URLs on unmount (managed by pdfCacheStorage)
   useEffect(() => {
@@ -619,7 +629,7 @@ export function Book3DViewer({
         showPageCorners: false,
         mobileScrollSupport: false,
         usePortrait: false,
-        startPage: Math.min(initialPage, total - 1),
+        startPage: Math.min(initialPageRef.current, total - 1),
         drawShadow: true,
         flippingTime: 650,
         useMouseEvents: true,
@@ -631,7 +641,7 @@ export function Book3DViewer({
       flip.loadFromHTML(leaves);
 
       // Force PageFlip to turn to the initial saved page
-      const targetStartPage = Math.min(Math.max(0, initialPage), total - 1);
+      const targetStartPage = Math.min(Math.max(0, initialPageRef.current), total - 1);
       if (targetStartPage > 0) {
         try {
           flip.turnToPage(targetStartPage);
@@ -704,6 +714,8 @@ export function Book3DViewer({
 
         // Fix PageFlip bug where flipPrev calculates hardcoded x:10 without accounting for bounding rect left offset
         controller.flipPrev = function(corner = 'top') {
+          const curIdx = flip.getCurrentPageIndex();
+          if (curIdx <= 0) return;
           const rect = this.render.getRect();
           this.flip({
             x: rect.left + 10,
@@ -711,6 +723,8 @@ export function Book3DViewer({
           });
         };
         controller.flipNext = function(corner = 'top') {
+          const curIdx = flip.getCurrentPageIndex();
+          if (curIdx >= total - 1) return;
           const rect = this.render.getRect();
           const totalWidth = rect.pageWidth ? rect.pageWidth * 2 : (dimensions.width * 2);
           this.flip({
@@ -728,9 +742,11 @@ export function Book3DViewer({
       });
 
       flip.on('flip', (e: any) => {
-        setCurrentPage(e.data);
-        if (onPageChange) {
-          onPageChange(e.data + 1, total);
+        const newPageIndex = typeof e.data === 'number' ? e.data : 0;
+        if (newPageIndex < 0 || newPageIndex >= total) return;
+        setCurrentPage(newPageIndex);
+        if (onPageChangeRef.current) {
+          onPageChangeRef.current(newPageIndex + 1, total);
         }
         // Update spine groove visibility: visible only on two-page open spreads
         if (spineEl) {
@@ -754,27 +770,35 @@ export function Book3DViewer({
         mountContainerRef.current.innerHTML = '';
       }
     };
-  }, [dimensions, pdfPageImages, paperTheme, initialPage, onPageChange, isBusyLoading]);
+  }, [dimensions, pdfPageImages, paperTheme, isBusyLoading]);
 
   const handlePrevPage = useCallback(() => {
-    if (soundEnabledRef.current) playRealisticPageTurn(0.85);
     if (!flipInstanceRef.current) return;
     try {
+      const curIdx = flipInstanceRef.current.getCurrentPageIndex();
+      if (curIdx <= 0) return; // Block flip attempt at first page
+      if (soundEnabledRef.current) playRealisticPageTurn(0.85);
       flipInstanceRef.current.flipPrev('top');
     } catch (e) {
-      flipInstanceRef.current.turnToPrevPage?.();
+      try {
+        flipInstanceRef.current.turnToPrevPage?.();
+      } catch (err) {}
     }
   }, []);
 
   const handleNextPage = useCallback(() => {
-    if (soundEnabledRef.current) playRealisticPageTurn(0.85);
     if (!flipInstanceRef.current) return;
     try {
+      const curIdx = flipInstanceRef.current.getCurrentPageIndex();
+      if (curIdx >= totalPages - 1) return; // Block flip attempt at last page
+      if (soundEnabledRef.current) playRealisticPageTurn(0.85);
       flipInstanceRef.current.flipNext('top');
     } catch (e) {
-      flipInstanceRef.current.turnToNextPage?.();
+      try {
+        flipInstanceRef.current.turnToNextPage?.();
+      } catch (err) {}
     }
-  }, []);
+  }, [totalPages]);
 
   // Keyboard navigation
   useEffect(() => {
