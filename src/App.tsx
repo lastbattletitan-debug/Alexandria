@@ -409,7 +409,7 @@ export default function App() {
                   <motion.div 
                     whileHover={{ y: -8 }}
                     onClick={() => fileInputRef.current?.click()}
-                    className="bg-bg-card border border-dashed border-white/10 rounded-[24px] lg:rounded-[32px] flex flex-col items-center justify-center aspect-[2/3] p-6 lg:p-8 gap-4 lg:gap-6 cursor-pointer hover:bg-white/[0.02] hover:border-white/20 transition-all group"
+                    className="bg-bg-card border border-dashed border-white/10 rounded-[16px] lg:rounded-[20px] flex flex-col items-center justify-center aspect-[2/3] p-6 lg:p-8 gap-4 lg:gap-6 cursor-pointer hover:bg-white/[0.02] hover:border-white/20 transition-all group"
                   >
                     <div className="w-10 h-10 lg:w-14 lg:h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                         {isUploading ? <Loader2 className="animate-spin text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" /> : <Plus className="text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />}
@@ -522,7 +522,7 @@ export default function App() {
                     <motion.div 
                       whileHover={{ y: -8 }}
                       onClick={() => fileInputRef.current?.click()}
-                      className="bg-bg-card border border-dashed border-white/10 rounded-[24px] lg:rounded-[32px] flex flex-col items-center justify-center aspect-[2/3] p-6 lg:p-8 gap-4 lg:gap-6 cursor-pointer hover:bg-white/[0.02] hover:border-white/20 transition-all group"
+                      className="bg-bg-card border border-dashed border-white/10 rounded-[16px] lg:rounded-[20px] flex flex-col items-center justify-center aspect-[2/3] p-6 lg:p-8 gap-4 lg:gap-6 cursor-pointer hover:bg-white/[0.02] hover:border-white/20 transition-all group"
                     >
                       <div className="w-10 h-10 lg:w-14 lg:h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                           {isUploading ? <Loader2 className="animate-spin text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" /> : <Plus className="text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />}
@@ -570,7 +570,7 @@ export default function App() {
                 <motion.div 
                   whileHover={{ y: -8 }}
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-bg-card border border-dashed border-white/10 rounded-[24px] lg:rounded-[32px] flex flex-col items-center justify-center aspect-[2/3] p-6 lg:p-8 gap-4 lg:gap-6 cursor-pointer hover:bg-white/[0.02] hover:border-white/20 transition-all group"
+                  className="bg-bg-card border border-dashed border-white/10 rounded-[16px] lg:rounded-[20px] flex flex-col items-center justify-center aspect-[2/3] p-6 lg:p-8 gap-4 lg:gap-6 cursor-pointer hover:bg-white/[0.02] hover:border-white/20 transition-all group"
                 >
                   <div className="w-10 h-10 lg:w-14 lg:h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                     {isUploading ? <Loader2 className="animate-spin text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" /> : <Plus className="text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />}
@@ -628,7 +628,7 @@ export default function App() {
           <motion.div 
             whileHover={{ y: -8 }}
             onClick={() => openAddModal(activeTab === 'mentores' ? 'Mentor' : 'Professor')}
-            className="bg-bg-card border border-dashed border-white/10 rounded-[24px] lg:rounded-[32px] flex flex-col items-center justify-center aspect-[2/3] p-6 lg:p-8 gap-4 lg:gap-6 cursor-pointer hover:bg-white/[0.02] hover:border-white/20 transition-all group"
+            className="bg-bg-card border border-dashed border-white/10 rounded-[16px] lg:rounded-[20px] flex flex-col items-center justify-center aspect-[2/3] p-6 lg:p-8 gap-4 lg:gap-6 cursor-pointer hover:bg-white/[0.02] hover:border-white/20 transition-all group"
           >
             <div className="w-10 h-10 lg:w-14 lg:h-14 bg-white/5 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
               <Plus className="text-text-primary w-[20px] h-[20px] lg:w-[24px] lg:h-[24px]" />

@@ -18,13 +18,13 @@ export function BookCard({ book, onRead, onViewNotes, onDelete, viewMode = 'grid
   return (
     <motion.div
       whileHover={{ y: isList ? 0 : -8, x: isList ? 8 : 0 }}
-      className={`bg-bg-card border border-white/5 rounded-[24px] lg:rounded-[32px] flex group hover:border-white/20 transition-all relative overflow-hidden ${
+      className={`bg-bg-card border border-white/5 rounded-[16px] lg:rounded-[20px] flex group hover:border-white/20 transition-all relative overflow-hidden ${
         isList ? 'flex-row h-24 lg:h-32 w-full items-center' : 'flex-col items-center aspect-[2/3]'
       }`}
       style={{ padding: isList ? `${12 * zoom}px ${16 * zoom}px` : `${16 * zoom}px` }}
     >
       {/* Image Container */}
-      <div className={`${isList ? 'w-16 lg:w-20 h-20 lg:h-24' : 'w-full flex-1'} relative rounded-[16px] lg:rounded-[20px] overflow-hidden bg-black/20 flex-shrink-0`}>
+      <div className={`${isList ? 'w-16 lg:w-20 h-20 lg:h-24' : 'w-full flex-1'} relative rounded-[10px] lg:rounded-[12px] overflow-hidden bg-black/20 flex-shrink-0`}>
           {book.thumbnail ? (
             <img 
               src={book.thumbnail} 
